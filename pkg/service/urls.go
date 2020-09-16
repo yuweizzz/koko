@@ -72,3 +72,7 @@ const (
 
 	K8sClusterDetailURL = "/api/v1/applications/k8s-apps/%s/"
 )
+
+const (
+	NotificationCommandURL = "/api/v1/terminal/commands/insecure-command-signal/"
+)
