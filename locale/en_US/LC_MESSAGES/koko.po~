@@ -1,0 +1,433 @@
+msgid ""
+msgstr ""
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: xgotext\n"
+
+#. i18n.T
+#: pkg/handler/app_k8s.go:53
+msgid "No kubernetes"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/app_k8s.go:66
+msgid "ID"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/app_k8s.go:67
+msgid "Name"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/app_k8s.go:68
+msgid "Cluster"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/app_k8s.go:69
+msgid "Comment"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/app_k8s.go:88
+msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/app_k8s.go:108
+msgid ""
+"Enter ID number directly login the kubernetes, multiple search use // + "
+"field, such as: //16"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/app_k8s.go:109
+msgid "Page up: b\tPage down: n"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/app_mysql.go:54
+msgid "No Databases"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/handler/app_mysql.go:67 pkg/handler/app_mysql.go:68
+#: pkg/handler/app_mysql.go:69
+msgid "IP"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/app_mysql.go:70
+msgid "DBType"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/app_mysql.go:71
+msgid "DB Name"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/handler/app_mysql.go:72 pkg/handler/app_mysql.go:94
+#: pkg/handler/app_mysql.go:115
+msgid ""
+"Enter ID number directly login the database, multiple search use // + field, "
+"such as: //16"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#: pkg/handler/app_mysql.go:116 pkg/handler/asset.go:55
+msgid "No Assets"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#: pkg/handler/asset.go:82 pkg/handler/asset.go:83
+msgid "Hostname"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/handler/asset.go:84 pkg/handler/asset.go:85 pkg/handler/asset.go:103
+#: pkg/handler/asset.go:122
+msgid ""
+"Enter ID number directly login the asset, multiple search use // + field, "
+"such as: //16"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#: pkg/handler/asset.go:123 pkg/handler/asset_node.go:20
+msgid "%s node has no assets"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:30
+msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:45
+msgid "Welcome to use JumpServer open source fortress system"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:47
+msgid "part IP, Hostname, Comment"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:47
+msgid "to search login if unique"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:48
+msgid "/ + IP, Hostname, Comment"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:48
+msgid "to search, such as: /192.168"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:49
+msgid "display the host you have permission"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:50
+msgid "display the node that you have permission"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:51
+msgid "display the databases that you have permission"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:52
+msgid "display the kubernetes that you have permission"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:53
+msgid "refresh your assets and nodes"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:54
+msgid "print help"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:55
+msgid "exit"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/dispatch.go:110
+msgid "Node: [ ID.Name(Asset amount) ]"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/dispatch.go:112
+msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/interactive.go:163
+msgid "No system user found."
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/handler/interactive.go:175 pkg/handler/interactive.go:176
+#: pkg/handler/interactive.go:177
+msgid "Username"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/interactive.go:206
+msgid "Tips: Enter system user ID and directly login"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/interactive.go:207
+msgid "Back: B/b"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/interactive.go:245
+msgid "Refresh done"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/select_handler.go:196
+msgid "Search: %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/select_handler.go:222
+msgid "The asset is inactive"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/commonswitch.go:234
+msgid "Connect idle more than %d minutes, disconnect"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/commonswitch.go:242
+msgid "Terminated by administrator"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbparser.go:125
+msgid "Command `%s` is forbidden"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbproxy.go:131
+msgid "Connecting to Database %s %.1f"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbproxy.go:150
+msgid "System user <%s> and database <%s> protocol are inconsistent."
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbproxy.go:158
+msgid "Database %s protocol client not installed."
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbproxy.go:239
+msgid "Create database session failed"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbproxy.go:251
+msgid "Create DB domain gateway failed %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbproxy.go:258
+msgid "Start DB domain gateway failed %s"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#: pkg/proxy/dbproxy.go:301 pkg/proxy/k8sproxy.go:86
+msgid "Connecting to Kubernetes %s %.1f"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/k8sproxy.go:105
+msgid "System user <%s> and kubernetes <%s> protocol are inconsistent."
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/k8sproxy.go:113
+msgid "%s protocol client not installed."
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/k8sproxy.go:121
+msgid "You don't have permission login %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/k8sproxy.go:129
+msgid "You get auth token failed"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/k8sproxy.go:215
+msgid "Create k8s session failed"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/k8sproxy.go:227
+msgid "Create k8s domain gateway failed %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/k8sproxy.go:234
+msgid "Start k8s domain gateway failed %s"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#: pkg/proxy/k8sproxy.go:276 pkg/proxy/login_confirm.go:21
+msgid "validate Login confirm err: Core Api failed"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:51
+msgid "Need ticket confirm to login, already send email to the reviewers"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:52
+msgid "Ticket Reviewers: %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:53
+msgid "Could copy website URL to notify reviewers: %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:54
+msgid "Please waiting for the reviewers to confirm, enter q to exit. "
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:81
+msgid "Unknown status"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:85
+msgid "%s approved"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:90
+msgid "%s rejected"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:94
+msgid "Cancel confirm"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/parser.go:172
+msgid "the reviewers will confirm. continue or not [Y/n]"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#: pkg/proxy/parser.go:242 pkg/proxy/parser.go:367
+msgid ""
+"Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C."
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/parser.go:375
+msgid ""
+"Need ticket confirm to execute command, already send email to the reviewers"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/proxy/parser.go:376 pkg/proxy/parser.go:377 pkg/proxy/proxy.go:184
+msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:238
+msgid "Connecting to %s@%s  %.1f"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:257
+msgid "System user <%s> and asset <%s> protocol are inconsistent."
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:265
+msgid ""
+"Terminal only support protocol ssh/telnet, please use web terminal to access"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:325
+msgid "Connect asset %s error: %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:370
+msgid "Connect with api server failed"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:424
+msgid "Create session failed"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:459
+msgid "Authentication failed"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:462
+msgid "Connection refused"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:465
+msgid "i/o timeout"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:468
+msgid "No route to host"
+msgstr ""
