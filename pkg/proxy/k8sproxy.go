@@ -59,17 +59,16 @@ func (p *K8sProxyServer) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn *s
 		}
 		clusterServer = ReplaceURLHostAndPort(originUrl, "127.0.0.1", localTunnelAddr.Port)
 	}
-	srvConn = srvconn.NewK8sCon(
+	srvConn, err = srvconn.NewK8sConnection(
 		srvconn.K8sToken(p.SystemUser.Token),
 		srvconn.K8sClusterServer(clusterServer),
 		srvconn.K8sUsername(p.SystemUser.Username),
 		srvconn.K8sSkipTls(true),
+		srvconn.K8sPtyWin(srvconn.Windows{
+			Width:  p.UserConn.Pty().Window.Width,
+			Height: p.UserConn.Pty().Window.Height,
+		}),
 	)
-	win := srvconn.Windows{
-		Width:  p.UserConn.Pty().Window.Width,
-		Height: p.UserConn.Pty().Window.Height,
-	}
-	err = srvConn.Connect(win)
 	return
 }
 

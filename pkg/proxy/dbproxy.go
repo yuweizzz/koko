@@ -98,18 +98,17 @@ func (p *DBProxyServer) getMysqlConn(localTunnelAddr *net.TCPAddr) (srvConn *srv
 		host = "127.0.0.1"
 		port = localTunnelAddr.Port
 	}
-	srvConn = srvconn.NewMySQLConnection(
+	srvConn, err = srvconn.NewMySQLConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(p.SystemUser.Username),
 		srvconn.SqlPassword(p.SystemUser.Password),
 		srvconn.SqlDBName(p.Database.Attrs.Database),
+		srvconn.SqlPtyWin(srvconn.Windows{
+			Width:  p.UserConn.Pty().Window.Width,
+			Height: p.UserConn.Pty().Window.Height,
+		}),
 	)
-	win := srvconn.Windows{
-		Width:  p.UserConn.Pty().Window.Width,
-		Height: p.UserConn.Pty().Window.Height,
-	}
-	err = srvConn.Connect(win)
 	return
 }
 

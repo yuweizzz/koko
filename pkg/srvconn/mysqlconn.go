@@ -41,18 +41,32 @@ exec su -s /bin/bash --command="mysql --user=${USERNAME} --host=${HOSTNAME} --po
 
 var mysqlOnce sync.Once
 
-func NewMySQLConnection(ops ...SqlOption) *MySQLConn {
+func NewMySQLConnection(ops ...SqlOption) (*MySQLConn, error) {
 	args := &sqlOption{
 		Username: os.Getenv("USER"),
 		Password: os.Getenv("PASSWORD"),
 		Host:     "127.0.0.1",
 		Port:     3306,
 		DBName:   "",
+		win: Windows{
+			Width:  80,
+			Height: 120,
+		},
 	}
 	for _, setter := range ops {
 		setter(args)
 	}
-	return &MySQLConn{options: args}
+
+	lCmd, err := startMySQLCommand(args)
+	if err != nil {
+		return nil, err
+	}
+	err = lCmd.SetWinSize(args.win.Width, args.win.Height)
+	if err != nil {
+		_ = lCmd.Close()
+		return nil, err
+	}
+	return &MySQLConn{options: args, LocalCommand: lCmd}, nil
 }
 
 type MySQLConn struct {
@@ -60,41 +74,40 @@ type MySQLConn struct {
 	*localcommand.LocalCommand
 }
 
-func (conn *MySQLConn) Connect(win Windows) (err error) {
-	lcmd, err := startMySQLCommand(conn)
-	if err != nil {
-		logger.Errorf("Start mysql command err: %s", err)
-		return err
-	}
-	_ = lcmd.SetWinSize(win.Width, win.Height)
-	conn.LocalCommand = lcmd
-	logger.Infof("Connect mysql database %s success ", conn.options.Host)
-	return
-}
+//func (conn *MySQLConn) Connect(win Windows) (err error) {
+//	lcmd, err := startMySQLCommand(conn)
+//	if err != nil {
+//		logger.Errorf("Start mysql command err: %s", err)
+//		return err
+//	}
+//	_ = lcmd.SetWinSize(win.Width, win.Height)
+//	conn.LocalCommand = lcmd
+//	logger.Infof("Connect mysql database %s success ", conn.options.Host)
+//	return
+//}
 
 func (conn *MySQLConn) KeepAlive() error {
 	return nil
 }
 
 func (conn *MySQLConn) Close() error {
-	_, _ = conn.Write([]byte("exit\r\n"))
+	_, _ = conn.Write([]byte("\r\nexit\r\n"))
 	return conn.LocalCommand.Close()
 }
 
-func startMySQLCommand(dbcon *MySQLConn) (lcmd *localcommand.LocalCommand, err error) {
+func startMySQLCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err error) {
 	initOnceLinuxMySQLShellFile()
 	if mysqlShellPath != "" {
-		if lcmd, err = startMySQLNameSpaceCommand(dbcon.options); err == nil {
-			if lcmd, err = tryManualLoginMySQLServer(dbcon, lcmd); err == nil {
+		if lcmd, err = startMySQLNameSpaceCommand(opt ); err == nil {
+			if lcmd, err = tryManualLoginMySQLServer(opt, lcmd); err == nil {
 				return lcmd, nil
 			}
 		}
 	}
-	if lcmd, err = startMySQLNormalCommand(dbcon.options); err != nil {
+	if lcmd, err = startMySQLNormalCommand(opt); err != nil {
 		return nil, err
 	}
-	return tryManualLoginMySQLServer(dbcon, lcmd)
-
+	return tryManualLoginMySQLServer(opt, lcmd)
 }
 
 func startMySQLNameSpaceCommand(opt *sqlOption) (*localcommand.LocalCommand, error) {
@@ -121,7 +134,7 @@ func startMySQLNormalCommand(opt *sqlOption) (*localcommand.LocalCommand, error)
 		localcommand.WithCmdCredential(&syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}))
 }
 
-func tryManualLoginMySQLServer(conn *MySQLConn, lcmd *localcommand.LocalCommand) (*localcommand.LocalCommand, error) {
+func tryManualLoginMySQLServer(opt *sqlOption, lcmd *localcommand.LocalCommand) (*localcommand.LocalCommand, error) {
 	var (
 		nr  int
 		err error
@@ -142,7 +155,7 @@ func tryManualLoginMySQLServer(conn *MySQLConn, lcmd *localcommand.LocalCommand)
 	}
 
 	// 输入密码, 登录 MySQL
-	_, err = lcmd.Write([]byte(conn.options.Password + "\r\n"))
+	_, err = lcmd.Write([]byte(opt.Password + "\r\n"))
 	if err != nil {
 		_ = lcmd.Close()
 		logger.Errorf("Mysql local pty write err: %s", err)
@@ -181,6 +194,8 @@ type sqlOption struct {
 	DBName   string
 	Host     string
 	Port     int
+
+	win Windows
 }
 
 func (opt *sqlOption) CommandArgs() []string {
@@ -231,5 +246,11 @@ func SqlHost(host string) SqlOption {
 func SqlPort(port int) SqlOption {
 	return func(args *sqlOption) {
 		args.Port = port
+	}
+}
+
+func SqlPtyWin(win Windows) SqlOption {
+	return func(args *sqlOption) {
+		args.win = win
 	}
 }

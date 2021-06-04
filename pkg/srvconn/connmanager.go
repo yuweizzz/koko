@@ -18,31 +18,6 @@ import (
 
 var sshManager = &SSHManager{data: make(map[string]*UserSSHClient)}
 
-var (
-	supportedCiphers = []string{
-		"aes128-ctr", "aes192-ctr", "aes256-ctr",
-		"aes128-gcm@openssh.com",
-		"chacha20-poly1305@openssh.com",
-		"arcfour256", "arcfour128", "arcfour",
-		"aes128-cbc",
-		"3des-cbc"}
-
-	supportedKexAlgos = []string{
-		"diffie-hellman-group1-sha1",
-		"diffie-hellman-group14-sha1", "ecdh-sha2-nistp256", "ecdh-sha2-nistp521",
-		"ecdh-sha2-nistp384", "curve25519-sha256@libssh.org",
-		"diffie-hellman-group-exchange-sha1", "diffie-hellman-group-exchange-sha256"}
-
-	supportedHostKeyAlgos = []string{
-		"ssh-rsa-cert-v01@openssh.com", "ssh-dss-cert-v01@openssh.com", "ecdsa-sha2-nistp256-cert-v01@openssh.com",
-		"ecdsa-sha2-nistp384-cert-v01@openssh.com", "ecdsa-sha2-nistp521-cert-v01@openssh.com",
-		"ssh-ed25519-cert-v01@openssh.com",
-		"ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521",
-		"ssh-rsa", "ssh-dss",
-		"ssh-ed25519", "sk-ssh-ed25519@openssh.com",
-	}
-)
-
 type sshClient struct {
 	client      *gossh.Client
 	proxyConn   gossh.Conn

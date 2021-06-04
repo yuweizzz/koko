@@ -49,7 +49,7 @@ func isValidK8sUserToken(o *k8sOptions) bool {
 	return false
 }
 
-func NewK8sCon(ops ...k8sOption) *K8sCon {
+func NewK8sConnection(ops ...K8sOption) (*K8sCon, error) {
 	args := &k8sOptions{
 		Username:      os.Getenv("USER"),
 		ClusterServer: "https://127.0.0.1:8443",
@@ -60,7 +60,25 @@ func NewK8sCon(ops ...k8sOption) *K8sCon {
 	for _, setter := range ops {
 		setter(args)
 	}
-	return &K8sCon{options: args}
+	if !isValidK8sUserToken(args) {
+		return nil, InValidToken
+	}
+	_, err := utils.Encrypt(args.Token, config.CipherKey)
+	if err != nil {
+		return nil, fmt.Errorf("%w: encrypt k8s token failed %s", InValidToken, err)
+	}
+
+	lcmd, err := startK8SLocalCommand(args)
+	if err != nil {
+		logger.Errorf("K8sCon start local pty err: %s", err)
+		return nil, fmt.Errorf("K8sCon start local pty err: %w", err)
+	}
+	err = lcmd.SetWinSize(args.win.Width, args.win.Height)
+	if err != nil {
+		_ = lcmd.Close()
+		return nil, err
+	}
+	return &K8sCon{options: args, LocalCommand: lcmd}, nil
 }
 
 type K8sCon struct {
@@ -68,20 +86,21 @@ type K8sCon struct {
 	*localcommand.LocalCommand
 }
 
-func (k *K8sCon) Connect(win Windows) (err error) {
-	if !isValidK8sUserToken(k.options) {
-		return InValidToken
-	}
-	lcmd, err := startK8SLocalCommand(k)
-	if err != nil {
-		logger.Errorf("K8sCon start local pty err: %s", err)
-		return fmt.Errorf("K8sCon start local pty err: %w", err)
-	}
-	_ = lcmd.SetWinSize(win.Width, win.Height)
-	k.LocalCommand = lcmd
-	logger.Infof("Connect K8s cluster server %s success", k.options.ClusterServer)
-	return
-}
+//
+//func (k *K8sCon) Connect(win Windows) (err error) {
+//	if !isValidK8sUserToken(k.options) {
+//		return InValidToken
+//	}
+//	lcmd, err := startK8SLocalCommand(k.options)
+//	if err != nil {
+//		logger.Errorf("K8sCon start local pty err: %s", err)
+//		return fmt.Errorf("K8sCon start local pty err: %w", err)
+//	}
+//	_ = lcmd.SetWinSize(win.Width, win.Height)
+//	k.LocalCommand = lcmd
+//	logger.Infof("Connect K8s cluster server %s success", k.options.ClusterServer)
+//	return
+//}
 
 func (k *K8sCon) KeepAlive() error {
 	return nil
@@ -93,6 +112,8 @@ type k8sOptions struct {
 	Token         string // 授权token
 	IsSkipTls     bool
 	ExtraEnv      map[string]string
+
+	win Windows
 }
 
 func (o *k8sOptions) Env() []string {
@@ -114,7 +135,7 @@ func (o *k8sOptions) Env() []string {
 	}
 }
 
-func startK8SLocalCommand(con *K8sCon) (*localcommand.LocalCommand, error) {
+func startK8SLocalCommand(args *k8sOptions) (*localcommand.LocalCommand, error) {
 	pwd, _ := os.Getwd()
 	shPath := filepath.Join(pwd, k8sInitFilename)
 	argv := []string{
@@ -123,37 +144,43 @@ func startK8SLocalCommand(con *K8sCon) (*localcommand.LocalCommand, error) {
 		"--mount-proc",
 		shPath,
 	}
-	return localcommand.New("unshare", argv, localcommand.WithEnv(con.options.Env()))
+	return localcommand.New("unshare", argv, localcommand.WithEnv(args.Env()))
 }
 
-type k8sOption func(*k8sOptions)
+type K8sOption func(*k8sOptions)
 
-func K8sUsername(username string) k8sOption {
+func K8sUsername(username string) K8sOption {
 	return func(args *k8sOptions) {
 		args.Username = username
 	}
 }
 
-func K8sToken(token string) k8sOption {
+func K8sToken(token string) K8sOption {
 	return func(args *k8sOptions) {
 		args.Token = token
 	}
 }
 
-func K8sClusterServer(clusterServer string) k8sOption {
+func K8sClusterServer(clusterServer string) K8sOption {
 	return func(args *k8sOptions) {
 		args.ClusterServer = clusterServer
 	}
 }
 
-func K8sExtraEnvs(envs map[string]string) k8sOption {
+func K8sExtraEnvs(envs map[string]string) K8sOption {
 	return func(args *k8sOptions) {
 		args.ExtraEnv = envs
 	}
 }
 
-func K8sSkipTls(isSkipTls bool) k8sOption {
+func K8sSkipTls(isSkipTls bool) K8sOption {
 	return func(args *k8sOptions) {
 		args.IsSkipTls = isSkipTls
+	}
+}
+
+func K8sPtyWin(win Windows) K8sOption {
+	return func(args *k8sOptions) {
+		args.win = win
 	}
 }

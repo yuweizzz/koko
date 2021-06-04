@@ -1,6 +1,8 @@
 package srvconn
 
 import (
+	"errors"
+	"fmt"
 	"net"
 	"strconv"
 	"time"
@@ -8,9 +10,9 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 )
 
-type SSHOption func(conf *SSHConfig)
+type SSHClientOption func(conf *SSHClientOptions)
 
-type SSHConfig struct {
+type SSHClientOptions struct {
 	Host         string
 	Port         string
 	Username     string
@@ -20,10 +22,11 @@ type SSHConfig struct {
 	Timeout      int
 	keyboardAuth gossh.KeyboardInteractiveChallenge
 	PrivateAuth  gossh.Signer
-	proxyClient  *gossh.Client
+
+	proxySSHClientOptions []SSHClientOptions
 }
 
-func (cfg *SSHConfig) AuthMethods() []gossh.AuthMethod {
+func (cfg *SSHClientOptions) AuthMethods() []gossh.AuthMethod {
 	authMethods := make([]gossh.AuthMethod, 0, 3)
 	if cfg.Password != "" {
 		authMethods = append(authMethods, gossh.Password(cfg.Password))
@@ -41,20 +44,20 @@ func (cfg *SSHConfig) AuthMethods() []gossh.AuthMethod {
 			err    error
 		)
 		if cfg.Passphrase != "" {
-			// 先使用 passphrase 获取 signer
-			signer, err = gossh.ParsePrivateKeyWithPassphrase([]byte(cfg.PrivateKey), []byte(cfg.Passphrase))
-			if err != nil {
-				// 如果失败，则去掉 passphrase 再尝试获取 signer 防止错误的passphrase
-				signer, err = gossh.ParsePrivateKey([]byte(cfg.PrivateKey))
+			// 先使用 passphrase 解析 PrivateKey
+			if signer, err = gossh.ParsePrivateKeyWithPassphrase([]byte(cfg.PrivateKey),
+				[]byte(cfg.Passphrase)); err == nil {
+				authMethods = append(authMethods, gossh.PublicKeys(signer))
 			}
-		} else {
-			signer, err = gossh.ParsePrivateKey([]byte(cfg.PrivateKey))
 		}
-		if signer != nil {
-			authMethods = append(authMethods, gossh.PublicKeys(signer))
+		if err != nil || cfg.Passphrase == "" {
+			// 1. 如果之前使用解析失败，则去掉 passphrase，则尝试直接解析 PrivateKey 防止错误的passphrase
+			// 2. 如果没有 Passphrase 则直接解析 PrivateKey
+			if signer, err = gossh.ParsePrivateKey([]byte(cfg.PrivateKey)); err == nil {
+				authMethods = append(authMethods, gossh.PublicKeys(signer))
+			}
 		}
 	}
-
 	if cfg.PrivateAuth != nil {
 		authMethods = append(authMethods, gossh.PublicKeys(cfg.PrivateAuth))
 	}
@@ -62,78 +65,87 @@ func (cfg *SSHConfig) AuthMethods() []gossh.AuthMethod {
 	return authMethods
 }
 
-func SSHUsername(username string) SSHOption {
-	return func(args *SSHConfig) {
+func SSHClientUsername(username string) SSHClientOption {
+	return func(args *SSHClientOptions) {
 		args.Username = username
 	}
 }
 
-func SSHPassword(password string) SSHOption {
-	return func(args *SSHConfig) {
+func SSHClientPassword(password string) SSHClientOption {
+	return func(args *SSHClientOptions) {
 		args.Password = password
 	}
 }
 
-func SSHPrivateKey(privateKey string) SSHOption {
-	return func(args *SSHConfig) {
+func SSHClientPrivateKey(privateKey string) SSHClientOption {
+	return func(args *SSHClientOptions) {
 		args.PrivateKey = privateKey
 	}
 }
 
-func SSHPassphrase(passphrase string) SSHOption {
-	return func(args *SSHConfig) {
+func SSHClientPassphrase(passphrase string) SSHClientOption {
+	return func(args *SSHClientOptions) {
 		args.Passphrase = passphrase
 	}
 }
 
-func SSHHost(host string) SSHOption {
-	return func(args *SSHConfig) {
+func SSHClientHost(host string) SSHClientOption {
+	return func(args *SSHClientOptions) {
 		args.Host = host
 	}
 }
 
-func SSHPort(port int) SSHOption {
-	return func(args *SSHConfig) {
+func SSHClientPort(port int) SSHClientOption {
+	return func(args *SSHClientOptions) {
 		args.Port = strconv.Itoa(port)
 	}
 }
 
-func SSHTimeout(timeout int) SSHOption {
-	return func(args *SSHConfig) {
+func SSHClientTimeout(timeout int) SSHClientOption {
+	return func(args *SSHClientOptions) {
 		args.Timeout = timeout
 	}
 }
 
-func SSHProxyClient(proxyClient *gossh.Client) SSHOption {
-	return func(option *SSHConfig) {
-		option.proxyClient = proxyClient
-	}
-}
-
-func SSHPrivateAuth(privateAuth gossh.Signer) SSHOption {
-	return func(conf *SSHConfig) {
+func SSHClientPrivateAuth(privateAuth gossh.Signer) SSHClientOption {
+	return func(conf *SSHClientOptions) {
 		conf.PrivateAuth = privateAuth
 	}
 }
 
-func SSHKeyboardAuth(keyboardAuth gossh.KeyboardInteractiveChallenge) SSHOption {
-	return func(conf *SSHConfig) {
+func SSHClientKeyboardAuth(keyboardAuth gossh.KeyboardInteractiveChallenge) SSHClientOption {
+	return func(conf *SSHClientOptions) {
 		conf.keyboardAuth = keyboardAuth
 	}
 }
 
-func NewSSHClient(opts ...SSHOption) (*SSHClient, error) {
-	conf := &SSHConfig{
+func NewSSHClient(opts ...SSHClientOption) (*SSHClient, error) {
+	cfg := &SSHClientOptions{
 		Host: "127.0.0.1",
 		Port: "22",
 	}
 	for _, setter := range opts {
-		setter(conf)
+		setter(cfg)
 	}
-	gosshConfig := gossh.ClientConfig{
-		User:              conf.Username,
-		Auth:              conf.AuthMethods(),
-		Timeout:           time.Duration(conf.Timeout) * time.Second,
+	return NewSSHClientWithCfg(cfg)
+}
+
+var ErrNoAvailable = errors.New("no available gateway")
+
+func getAvailableProxyClient(cfgs ...SSHClientOptions) (*SSHClient, error) {
+	for i := range cfgs {
+		if proxyClient, err := NewSSHClientWithCfg(&cfgs[i]); err == nil {
+			return proxyClient, nil
+		}
+	}
+	return nil, ErrNoAvailable
+}
+
+func NewSSHClientWithCfg(cfg *SSHClientOptions) (*SSHClient, error) {
+	gosshCfg := gossh.ClientConfig{
+		User:              cfg.Username,
+		Auth:              cfg.AuthMethods(),
+		Timeout:           time.Duration(cfg.Timeout) * time.Second,
 		HostKeyCallback:   gossh.InsecureIgnoreHostKey(),
 		HostKeyAlgorithms: supportedHostKeyAlgos,
 		Config: gossh.Config{
@@ -141,29 +153,72 @@ func NewSSHClient(opts ...SSHOption) (*SSHClient, error) {
 			Ciphers:      supportedCiphers,
 		},
 	}
-	destAddr := net.JoinHostPort(conf.Host, conf.Port)
-	if conf.proxyClient != nil {
-		destConn, err := conf.proxyClient.Dial("tcp", destAddr)
+	destAddr := net.JoinHostPort(cfg.Host, cfg.Port)
+	if cfg.proxySSHClientOptions != nil {
+		proxyClient, err := getAvailableProxyClient(cfg.proxySSHClientOptions...)
 		if err != nil {
 			return nil, err
 		}
-		proxyConn, chans, reqs, err := gossh.NewClientConn(destConn, destAddr, &gosshConfig)
+		destConn, err := proxyClient.Dial("tcp", destAddr)
 		if err != nil {
+			_ = proxyClient.Close()
+			return nil, err
+		}
+		proxyConn, chans, reqs, err := gossh.NewClientConn(destConn, destAddr, &gosshCfg)
+		if err != nil {
+			_ = proxyClient.Close()
 			_ = destConn.Close()
 			return nil, err
 		}
 		gosshClient := gossh.NewClient(proxyConn, chans, reqs)
-		return &SSHClient{Cfg: conf, Conn: gosshClient}, nil
+		return &SSHClient{Cfg: cfg, Client: gosshClient, ProxyClient: proxyClient}, nil
 	}
-	gosshClient, err := gossh.Dial("tcp", destAddr, &gosshConfig)
+	gosshClient, err := gossh.Dial("tcp", destAddr, &gosshCfg)
 	if err != nil {
 		return nil, err
 	}
-
-	return &SSHClient{Cfg: conf, Conn: gosshClient}, nil
+	return &SSHClient{Client: gosshClient, Cfg: cfg}, nil
 }
 
 type SSHClient struct {
-	Conn *gossh.Client
-	Cfg  *SSHConfig
+	*gossh.Client
+	Cfg         *SSHClientOptions
+	ProxyClient *SSHClient
 }
+
+func (s *SSHClient) String() string {
+	return fmt.Sprintf("%s@%s:%s", s.Cfg.Username,
+		s.Cfg.Host, s.Cfg.Port)
+}
+
+func (s *SSHClient) Close() error {
+	if s.ProxyClient != nil {
+		_ = s.ProxyClient.Close()
+	}
+	return s.Client.Close()
+}
+
+var (
+	supportedCiphers = []string{
+		"aes128-ctr", "aes192-ctr", "aes256-ctr",
+		"aes128-gcm@openssh.com",
+		"chacha20-poly1305@openssh.com",
+		"arcfour256", "arcfour128", "arcfour",
+		"aes128-cbc",
+		"3des-cbc"}
+
+	supportedKexAlgos = []string{
+		"diffie-hellman-group1-sha1",
+		"diffie-hellman-group14-sha1", "ecdh-sha2-nistp256", "ecdh-sha2-nistp521",
+		"ecdh-sha2-nistp384", "curve25519-sha256@libssh.org",
+		"diffie-hellman-group-exchange-sha1", "diffie-hellman-group-exchange-sha256"}
+
+	supportedHostKeyAlgos = []string{
+		"ssh-rsa-cert-v01@openssh.com", "ssh-dss-cert-v01@openssh.com", "ecdsa-sha2-nistp256-cert-v01@openssh.com",
+		"ecdsa-sha2-nistp384-cert-v01@openssh.com", "ecdsa-sha2-nistp521-cert-v01@openssh.com",
+		"ssh-ed25519-cert-v01@openssh.com",
+		"ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521",
+		"ssh-rsa", "ssh-dss",
+		"ssh-ed25519", "sk-ssh-ed25519@openssh.com",
+	}
+)

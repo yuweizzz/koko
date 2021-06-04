@@ -23,7 +23,7 @@ type ProxyServer struct {
 	Asset      *model.Asset
 	SystemUser *model.SystemUser
 
-	cacheSSHConnection *srvconn.ServerSSHConnection
+	cacheSSHConnection *srvconn.SSHConnection
 
 	permissionExpireTime int64
 }
@@ -108,7 +108,7 @@ func (p *ProxyServer) validatePermission() bool {
 }
 
 // getSSHConn 获取ssh连接
-func (p *ProxyServer) getSSHConn() (srvConn *srvconn.ServerSSHConnection, err error) {
+func (p *ProxyServer) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	conf := config.GetConf()
 	newClient, err := srvconn.NewClient(p.User, p.Asset, p.SystemUser,
 		time.Duration(conf.SSHTimeout)*time.Second, conf.ReuseConnection)
@@ -124,9 +124,6 @@ func (p *ProxyServer) getSSHConn() (srvConn *srvconn.ServerSSHConnection, err er
 		return nil, err
 	}
 	pty := p.UserConn.Pty()
-	srvConn = srvconn.NewServerSSHConnection(sess,
-		srvconn.OptionCharset(p.getAssetCharset()))
-	err = srvConn.Connect(pty.Window.Height, pty.Window.Width, pty.Term)
 	go func() {
 		_ = sess.Wait()
 		logger.Infof("Conn[%s] ssh client(%s@%s) session closed.",
@@ -135,6 +132,10 @@ func (p *ProxyServer) getSSHConn() (srvConn *srvconn.ServerSSHConnection, err er
 		logger.Infof("Conn[%s] ssh ssh client(%s@%s) recycled and current ref: %d",
 			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, newClient.RefCount())
 	}()
+	srvConn, err = srvconn.NewSSHConnection(sess, srvconn.SSHCharset(p.getAssetCharset()),
+		srvconn.SSHTerm(pty.Term), srvconn.SSHPtyWin(srvconn.Windows{
+			Width:  pty.Window.Width,
+			Height: pty.Window.Height}))
 	if err != nil {
 		_ = sess.Close()
 		logger.Errorf("Conn[%s] ssh client(%s@%s) start shell err: %s",
@@ -146,7 +147,7 @@ func (p *ProxyServer) getSSHConn() (srvConn *srvconn.ServerSSHConnection, err er
 	return
 }
 
-func (p *ProxyServer) getCacheSSHConn() (srvConn *srvconn.ServerSSHConnection, ok bool) {
+func (p *ProxyServer) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 	key := srvconn.MakeReuseSSHClientKey(p.User, p.Asset, p.SystemUser)
 	if cacheSSHClient, ok := srvconn.GetClientFromCache(key); ok {
 		logger.Infof("Conn[%s] get cache ssh client(%s@%s)",
@@ -158,9 +159,10 @@ func (p *ProxyServer) getCacheSSHConn() (srvConn *srvconn.ServerSSHConnection, o
 			return nil, false
 		}
 		pty := p.UserConn.Pty()
-		srvConn := srvconn.NewServerSSHConnection(sess,
-			srvconn.OptionCharset(p.getAssetCharset()))
-		err2 := srvConn.Connect(pty.Window.Height, pty.Window.Width, pty.Term)
+		srvConn, err2 := srvconn.NewSSHConnection(sess, srvconn.SSHCharset(p.getAssetCharset()),
+			srvconn.SSHTerm(pty.Term), srvconn.SSHPtyWin(srvconn.Windows{
+				Width:  pty.Window.Width,
+				Height: pty.Window.Height}))
 		go func() {
 			_ = sess.Wait()
 			logger.Infof("Conn[%s] reused ssh client(%s@%s) session closed.",
@@ -189,7 +191,7 @@ func (p *ProxyServer) getCacheSSHConn() (srvConn *srvconn.ServerSSHConnection, o
 }
 
 // getTelnetConn 获取telnet连接
-func (p *ProxyServer) getTelnetConn() (srvConn *srvconn.ServerTelnetConnection, err error) {
+func (p *ProxyServer) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) {
 	conf := config.GetConf()
 	// todo: telnet 正则配置
 	//cusString := conf.TelnetRegex
@@ -199,7 +201,7 @@ func (p *ProxyServer) getTelnetConn() (srvConn *srvconn.ServerTelnetConnection, 
 		logger.Errorf("Conn[%s] telnet custom regex %s compile err: %s",
 			p.UserConn.ID(), cusString, err)
 	}
-	srvConn = &srvconn.ServerTelnetConnection{
+	srvConn = &srvconn.TelnetConnection{
 		User:                 p.User,
 		Asset:                p.Asset,
 		SystemUser:           p.SystemUser,

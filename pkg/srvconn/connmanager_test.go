@@ -5,12 +5,12 @@ import (
 	"testing"
 )
 
-var testConnection = SSHClientConfig{
+var testConnection = SSHClientOptions{
 	Host:     "127.0.0.1",
 	Port:     "22",
 	User:     "root",
 	Password: "redhat",
-	Proxy: []*SSHClientConfig{
+	Proxy: []*SSHClientOptions{
 		{Host: "192.168.244.185", Port: "22", User: "root", Password: "redhat"},
 	},
 }

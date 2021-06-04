@@ -16,7 +16,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-type ServerTelnetConnection struct {
+type TelnetConnection struct {
 	User                 *model.User
 	Asset                *model.Asset
 	SystemUser           *model.SystemUser
@@ -33,22 +33,22 @@ type ServerTelnetConnection struct {
 	transformWriter io.Writer
 }
 
-func (tc *ServerTelnetConnection) Timeout() time.Duration {
+func (tc *TelnetConnection) Timeout() time.Duration {
 	if tc.Overtime == 0 {
 		tc.Overtime = 30 * time.Second
 	}
 	return tc.Overtime
 }
 
-func (tc *ServerTelnetConnection) Protocol() string {
+func (tc *TelnetConnection) Protocol() string {
 	return "telnet"
 }
 
-func (tc *ServerTelnetConnection) KeepAlive() error {
+func (tc *TelnetConnection) KeepAlive() error {
 	return nil
 }
 
-func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
+func (tc *TelnetConnection) Connect(h, w int, term string) (err error) {
 	var ip = tc.Asset.IP
 	var port = strconv.Itoa(tc.Asset.ProtocolPort("telnet"))
 	var asset = tc.Asset
@@ -120,19 +120,19 @@ func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 	return nil
 }
 
-func (tc *ServerTelnetConnection) SetWinSize(w, h int) error {
+func (tc *TelnetConnection) SetWinSize(w, h int) error {
 	return tc.conn.WindowChange(w, h)
 }
 
-func (tc *ServerTelnetConnection) Read(p []byte) (n int, err error) {
+func (tc *TelnetConnection) Read(p []byte) (n int, err error) {
 	return tc.transformReader.Read(p)
 }
 
-func (tc *ServerTelnetConnection) Write(p []byte) (n int, err error) {
+func (tc *TelnetConnection) Write(p []byte) (n int, err error) {
 	return tc.transformWriter.Write(p)
 }
 
-func (tc *ServerTelnetConnection) Close() (err error) {
+func (tc *TelnetConnection) Close() (err error) {
 	if tc.closed {
 		return
 	}
