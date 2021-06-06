@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -75,7 +74,7 @@ func (p *ProxyServer) getSystemUserBasicInfo() {
 	logger.Infof("Conn[%s] start to get systemUser auth info from core server", p.UserConn.ID())
 	var info model.SystemUserAuthInfo
 	info = service.GetUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID, p.User.ID, p.User.Username)
-	p.SystemUser.Username = info.UserName
+	p.SystemUser.Username = info.Username
 	p.SystemUser.Password = info.Password
 	p.SystemUser.PrivateKey = info.PrivateKey
 }
@@ -192,25 +191,25 @@ func (p *ProxyServer) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool
 
 // getTelnetConn 获取telnet连接
 func (p *ProxyServer) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) {
-	conf := config.GetConf()
+	//conf := config.GetConf()
 	// todo: telnet 正则配置
 	//cusString := conf.TelnetRegex
 	cusString := "telnet regex"
-	pattern, err := regexp.Compile(cusString)
+	//pattern, err := regexp.Compile(cusString)
 	if err != nil {
 		logger.Errorf("Conn[%s] telnet custom regex %s compile err: %s",
 			p.UserConn.ID(), cusString, err)
 	}
-	srvConn = &srvconn.TelnetConnection{
-		User:                 p.User,
-		Asset:                p.Asset,
-		SystemUser:           p.SystemUser,
-		CustomString:         cusString,
-		CustomSuccessPattern: pattern,
-		Overtime:             time.Duration(conf.SSHTimeout) * time.Second,
-		Charset:              p.getAssetCharset(),
-	}
-	err = srvConn.Connect(0, 0, "")
+	//srvConn = &srvconn.TelnetConnection{
+	//	User:                 p.User,
+	//	Asset:                p.Asset,
+	//	SystemUser:           p.SystemUser,
+	//	CustomString:         cusString,
+	//	CustomSuccessPattern: pattern,
+	//	Overtime:             time.Duration(conf.SSHTimeout) * time.Second,
+	//	Charset:              p.getAssetCharset(),
+	//}
+	//err = srvConn.Connect(0, 0, "")
 	utils.IgnoreErrWriteString(p.UserConn, "\r\n")
 	return
 }

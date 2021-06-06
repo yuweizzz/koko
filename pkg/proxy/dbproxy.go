@@ -177,7 +177,7 @@ func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 
 func (p *DBProxyServer) checkRequiredAuth() error {
 	info := service.GetUserApplicationAuthInfo(p.SystemUser.ID, p.Database.Id, p.User.ID, p.User.Username)
-	p.SystemUser.Username = info.UserName
+	p.SystemUser.Username = info.Username
 	p.SystemUser.Password = info.Password
 	logger.Infof("Conn[%s] get database %s auth info from core server success",
 		p.UserConn.ID(), p.Database.Name)

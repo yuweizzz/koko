@@ -11,6 +11,9 @@ import (
 )
 
 func NewSSHConnection(sess *gossh.Session, opts ...SSHOption) (*SSHConnection, error) {
+	if sess == nil {
+		return nil, errors.New("ssh session is nil")
+	}
 	options := &SSHOptions{
 		charset: common.UTF8,
 		win: Windows{
@@ -22,10 +25,6 @@ func NewSSHConnection(sess *gossh.Session, opts ...SSHOption) (*SSHConnection, e
 	for _, setter := range opts {
 		setter(options)
 	}
-	if sess == nil {
-		return nil, errors.New("ssh session is nil")
-	}
-
 	modes := gossh.TerminalModes{
 		gossh.ECHO:          1,     // enable echoing
 		gossh.TTY_OP_ISPEED: 14400, // input speed = 14.4 kbaud
@@ -55,7 +54,6 @@ func NewSSHConnection(sess *gossh.Session, opts ...SSHOption) (*SSHConnection, e
 	if err != nil {
 		return nil, err
 	}
-
 	return &SSHConnection{
 		session: sess,
 		stdin:   stdin,

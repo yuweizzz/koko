@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	"os"
 	"strings"
 	"syscall"
@@ -264,8 +263,8 @@ func (u *UserSftpConn) ParsePath(path string) (fi os.FileInfo, restPath string) 
 }
 
 func (u *UserSftpConn) initial() {
-	nodeTrees, err := u.jmsService.GetNodeTreeByUserAndNodeKey(u.User.ID, "",)
-	if err != nil{
+	nodeTrees, err := u.jmsService.GetNodeTreeByUserAndNodeKey(u.User.ID, "")
+	if err != nil {
 		// todo log
 	}
 	if u.Dirs == nil {
@@ -384,7 +383,7 @@ func (u *UserSftpConn) loopPushFTPLog() {
 
 func (u *UserSftpConn) Search(key string) (res []os.FileInfo, err error) {
 	if u.searchDir == nil {
-		logger.Errorf("not found search folder")
+		logger.Error("not found search folder")
 		return nil, errors.New("not found")
 	}
 	assets, err := u.jmsService.SearchPermAsset(u.User.ID, key)

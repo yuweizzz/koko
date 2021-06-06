@@ -14,3 +14,10 @@ type Windows struct {
 	Width  int
 	Height int
 }
+
+const (
+	ProtocolSSH    = "ssh"
+	ProtocolTELNET = "telnet"
+	ProtocolK8s    = "k8s"
+	ProtocolMySQL  = "mysql"
+)

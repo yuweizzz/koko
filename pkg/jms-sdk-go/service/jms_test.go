@@ -1,18 +1,25 @@
 package service
 
 import (
+	"os"
 	"testing"
 
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/httplib"
 )
 
 func setup() *JMService {
+	/*
+	从环境变量获取 认证信息
+	CORE_HOST
+	access_key_id
+	access_key_secret
+	 */
 	auth := httplib.SigAuth{
-		KeyID:    "25bfc52e-48de-4c0c-9b1c-44c79aeb238a",
-		SecretID: "e275a9d9-2c9b-4823-be41-a9012d5cd0c3",
+		KeyID:    os.Getenv("access_key_id"),
+		SecretID: os.Getenv("access_key_secret"),
 	}
 	jms, err := NewAuthJMService(JMSAccessKey(auth.KeyID, auth.SecretID),
-		JMSCoreHost("http://10.1.88.5:8080"))
+		JMSCoreHost(os.Getenv("CORE_HOST")))
 	if err != nil {
 		panic(err)
 	}
@@ -25,7 +32,7 @@ func TestJMService_GetProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("%v", user)
+	t.Logf("%+v", user)
 
 }
 
