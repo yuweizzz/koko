@@ -1,6 +1,7 @@
 package srvconn
 
 import (
+	"errors"
 	"io"
 )
 
@@ -20,4 +21,9 @@ const (
 	ProtocolTELNET = "telnet"
 	ProtocolK8s    = "k8s"
 	ProtocolMySQL  = "mysql"
+)
+
+
+var (
+	ErrUnSupportedProtocol = errors.New("unsupported protocol")
 )
