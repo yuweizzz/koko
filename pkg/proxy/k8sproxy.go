@@ -44,7 +44,7 @@ func (p *K8sProxyServer) checkProtocolClientInstalled() bool {
 
 // validatePermission 检查是否有权限连接
 func (p *K8sProxyServer) validatePermission() bool {
-	expireUTCDate, ok := service.ValidateUserApplicationPermission(p.User.ID, p.Cluster.Id, p.SystemUser.ID)
+	expireUTCDate, ok := service.ValidateUserApplicationPermission(p.User.ID, p.Cluster.ID, p.SystemUser.ID)
 	p.permissionExpireTime = expireUTCDate
 	return ok
 }
@@ -138,7 +138,7 @@ func (p *K8sProxyServer) preCheckRequisite() (ok bool) {
 }
 
 func (p *K8sProxyServer) checkRequiredAuth() error {
-	info := service.GetUserApplicationAuthInfo(p.SystemUser.ID, p.Cluster.Id, p.User.ID, p.User.Username)
+	info := service.GetUserApplicationAuthInfo(p.SystemUser.ID, p.Cluster.ID, p.User.ID, p.User.Username)
 
 	if info.Token == "" {
 		return errors.New("no auth token")
@@ -262,7 +262,7 @@ func (p *K8sProxyServer) GenerateRecordCommand(s *commonSwitch, input, output st
 	riskLevel int64) *model.Command {
 	return &model.Command{
 		SessionID:  s.ID,
-		OrgID:      p.Cluster.OrgId,
+		OrgID:      p.Cluster.OrgID,
 		Input:      input,
 		Output:     output,
 		User:       fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
@@ -285,7 +285,7 @@ func (p *K8sProxyServer) NewParser(s *commonSwitch) ParseEngine {
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Error(msg + err.Error())
 	}
-	return &shellParser
+	return shellParser
 }
 
 func (p *K8sProxyServer) MapData(s *commonSwitch) map[string]interface{} {
@@ -297,7 +297,7 @@ func (p *K8sProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"id":             s.ID,
 		"user":           fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
 		"asset":          p.Cluster.Name,
-		"org_id":         p.Cluster.OrgId,
+		"org_id":         p.Cluster.OrgID,
 		"login_from":     p.UserConn.LoginFrom(),
 		"system_user":    fmt.Sprintf("%s(%s)", p.SystemUser.Name, p.SystemUser.Username),
 		"protocol":       p.SystemUser.Protocol,
@@ -306,7 +306,7 @@ func (p *K8sProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"date_start":     s.DateStart,
 		"date_end":       dataEnd,
 		"user_id":        p.User.ID,
-		"asset_id":       p.Cluster.Id,
+		"asset_id":       p.Cluster.ID,
 		"system_user_id": p.SystemUser.ID,
 		"is_success":     s.isConnected,
 	}

@@ -49,7 +49,7 @@ type commonSwitch struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	p proxyEngine
+	p *SessionServer
 }
 
 func (s *commonSwitch) Terminate() {
@@ -109,14 +109,14 @@ func (s *commonSwitch) generateCommandResult(command [3]string) *model.Command {
 }
 
 // postBridge 桥接结束以后执行操作
-func (s *commonSwitch) postBridge() {
-	s.DateEnd = common.CurrentUTCTime()
-	s.finished = true
-}
+//func (s *commonSwitch) postBridge() {
+//	s.DateEnd = common.CurrentUTCTime()
+//	s.finished = true
+//}
 
-func (s *commonSwitch) MapData() map[string]interface{} {
-	return s.p.MapData(s)
-}
+//func (s *commonSwitch) MapData() map[string]interface{} {
+//	return s.p.MapData(s)
+//}
 
 // Bridge 桥接两个链接
 func (s *commonSwitch) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
@@ -124,7 +124,8 @@ func (s *commonSwitch) Bridge(userConn UserConnection, srvConn srvconn.ServerCon
 		replayRecorder ReplyRecorder
 	)
 	s.isConnected = true
-	parser := s.p.NewParser(s)
+	//parser := s.p.NewParser(s)
+	parser := s.p.GetFilterParser()
 	logger.Infof("Conn[%s] create ParseEngine success", userConn.ID())
 	replayRecorder = NewReplyRecord(s.ID)
 	logger.Infof("Conn[%s] create replay success", userConn.ID())
@@ -142,7 +143,7 @@ func (s *commonSwitch) Bridge(userConn UserConnection, srvConn srvconn.ServerCon
 		parser.Close()
 		// 关闭录像
 		replayRecorder.End()
-		s.postBridge()
+		//s.postBridge()
 	}()
 
 	// 记录命令

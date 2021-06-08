@@ -229,14 +229,14 @@ func (u *UserSelectHandler) Proxy(target map[string]interface{}) {
 		u.proxyAsset(asset)
 	case TypeK8s:
 		app := service.GetK8sApplication(targetId)
-		if app.Id == "" {
+		if app.ID == "" {
 			logger.Errorf("Select k8s %s not found", targetId)
 			return
 		}
 		u.proxyK8s(app)
 	case TypeMySQL:
 		app := service.GetMySQLApplication(targetId)
-		if app.Id == "" {
+		if app.ID == "" {
 			logger.Errorf("Select MySQL %s not found", targetId)
 			return
 		}

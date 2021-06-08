@@ -21,3 +21,16 @@ func (s *JMService) getApplicationById(appId string, res interface{}) error {
 	_, err := s.authClient.Get(reqUrl, res)
 	return err
 }
+
+func (s *JMService) GetUserApplicationAuthInfo(systemUserID, appID, userID, username string) (info model.SystemUserAuthInfo, err error) {
+	Url := fmt.Sprintf(SystemUserAppAuthURL, systemUserID, appID)
+	params := make(map[string]string)
+	if username != "" {
+		params["username"] = username
+	}
+	if userID != "" {
+		params["user_id"] = userID
+	}
+	_, err = s.authClient.Get(Url, &info, params)
+	return
+}

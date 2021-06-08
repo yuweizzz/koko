@@ -85,7 +85,7 @@ func (p *DBProxyServer) checkProtocolClientInstalled() bool {
 
 // validatePermission 检查是否有权限连接
 func (p *DBProxyServer) validatePermission() bool {
-	expireUTCDate, ok := service.ValidateUserApplicationPermission(p.User.ID, p.Database.Id, p.SystemUser.ID)
+	expireUTCDate, ok := service.ValidateUserApplicationPermission(p.User.ID, p.Database.ID, p.SystemUser.ID)
 	p.permissionExpireTime = expireUTCDate
 	return ok
 }
@@ -176,7 +176,7 @@ func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 }
 
 func (p *DBProxyServer) checkRequiredAuth() error {
-	info := service.GetUserApplicationAuthInfo(p.SystemUser.ID, p.Database.Id, p.User.ID, p.User.Username)
+	info := service.GetUserApplicationAuthInfo(p.SystemUser.ID, p.Database.ID, p.User.ID, p.User.Username)
 	p.SystemUser.Username = info.Username
 	p.SystemUser.Password = info.Password
 	logger.Infof("Conn[%s] get database %s auth info from core server success",
@@ -282,7 +282,7 @@ func (p *DBProxyServer) GenerateRecordCommand(s *commonSwitch, input, output str
 	riskLevel int64) *model.Command {
 	return &model.Command{
 		SessionID:  s.ID,
-		OrgID:      p.Database.OrgId,
+		OrgID:      p.Database.OrgID,
 		Input:      input,
 		Output:     output,
 		User:       fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
@@ -297,14 +297,14 @@ func (p *DBProxyServer) GenerateRecordCommand(s *commonSwitch, input, output str
 
 func (p *DBProxyServer) NewParser(s *commonSwitch) ParseEngine {
 	dbParser := newDBParser(s.ID)
-	msg := i18n.T("Create database session failed")
-	if cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID); err == nil {
-		dbParser.SetCMDFilterRules(cmdRules)
-	} else {
-		msg = utils.WrapperWarn(msg)
-		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Error(msg + err.Error())
-	}
+	//msg := i18n.T("Create database session failed")
+	//if cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID); err == nil {
+	//	//dbParser.SetCMDFilterRules(cmdRules)
+	//} else {
+	//	msg = utils.WrapperWarn(msg)
+	//	utils.IgnoreErrWriteString(p.UserConn, msg)
+	//	logger.Error(msg + err.Error())
+	//}
 	return &dbParser
 }
 
@@ -317,7 +317,7 @@ func (p *DBProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"id":             s.ID,
 		"user":           fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
 		"asset":          p.Database.Name,
-		"org_id":         p.Database.OrgId,
+		"org_id":         p.Database.OrgID,
 		"login_from":     p.UserConn.LoginFrom(),
 		"system_user":    p.SystemUser.Username,
 		"protocol":       p.SystemUser.Protocol,
@@ -326,7 +326,7 @@ func (p *DBProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"date_start":     s.DateStart,
 		"date_end":       dataEnd,
 		"user_id":        p.User.ID,
-		"asset_id":       p.Database.Id,
+		"asset_id":       p.Database.ID,
 		"system_user_id": p.SystemUser.ID,
 		"is_success":     s.isConnected,
 	}

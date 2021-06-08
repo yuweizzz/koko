@@ -186,11 +186,11 @@ func (p *DBParser) ParseServerOutput(b []byte) []byte {
 	p.splitCmdStream(b)
 	return b
 }
-
-// SetCMDFilterRules 设置命令过滤规则
-func (p *DBParser) SetCMDFilterRules(rules []model.SystemUserFilterRule) {
-	p.cmdFilterRules = rules
-}
+//
+//// SetCMDFilterRules 设置命令过滤规则
+//func (p *DBParser) SetCMDFilterRules(rules []model.SystemUserFilterRule) {
+//	p.cmdFilterRules = rules
+//}
 
 // IsCommandForbidden 判断命令是不是在过滤规则中
 func (p *DBParser) IsCommandForbidden() (string, bool) {

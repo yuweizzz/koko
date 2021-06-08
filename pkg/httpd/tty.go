@@ -151,7 +151,7 @@ func (h *tty) getApp() bool {
 			logger.Errorf("")
 			return false
 		}
-		if databaseAsset.Id != "" {
+		if databaseAsset.ID != "" {
 			h.dbApp = &databaseAsset
 			return true
 		}
@@ -160,7 +160,7 @@ func (h *tty) getApp() bool {
 		if err != nil {
 			return false
 		}
-		if k8sCluster.Id != "" {
+		if k8sCluster.ID != "" {
 			h.k8sApp = &k8sCluster
 			return true
 		}

@@ -429,7 +429,7 @@ func (p *ProxyServer) NewParser(s *commonSwitch) ParseEngine {
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Error(msg + err.Error())
 	}
-	return &shellParser
+	return shellParser
 }
 
 func (p *ProxyServer) GenerateRecordCommand(s *commonSwitch, input, output string,

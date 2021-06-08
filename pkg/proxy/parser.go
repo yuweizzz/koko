@@ -51,10 +51,10 @@ const (
 
 var _ ParseEngine = (*Parser)(nil)
 
-func newParser(sid, protocolType string) Parser {
+func newParser(sid, protocolType string) *Parser {
 	parser := Parser{id: sid, protocolType: protocolType}
 	parser.initial()
-	return parser
+	return &parser
 }
 
 // Parse 解析用户输入输出, 拦截过滤用户输入输出
@@ -496,6 +496,12 @@ func (p *Parser) NeedRecord() bool {
 
 func (p *Parser) CommandRecordChan() chan [3]string {
 	return p.cmdRecordChan
+}
+
+type ExecuteDCommand struct {
+	CreatedDate time.Time
+	Command     string
+	Output      string
 }
 
 func IsEditEnterMode(p []byte) bool {

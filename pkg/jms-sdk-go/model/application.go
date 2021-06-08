@@ -13,13 +13,13 @@ type dbAttrs struct {
 }
 
 type BaseApplication struct {
-	Id       string `json:"id"`
+	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Category string `json:"category"`
 	TypeName string `json:"type"`
 	Domain   string `json:"domain"`
 	Comment  string `json:"comment"`
-	OrgId    string `json:"org_id"`
+	OrgID    string `json:"org_id"`
 	OrgName  string `json:"org_name"`
 }
 

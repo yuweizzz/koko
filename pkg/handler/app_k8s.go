@@ -117,7 +117,7 @@ func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 }
 
 func (u *UserSelectHandler) proxyK8s(k8sApp model.K8sApplication) {
-	systemUsers := service.GetUserApplicationSystemUsers(u.user.ID, k8sApp.Id)
+	systemUsers := service.GetUserApplicationSystemUsers(u.user.ID, k8sApp.ID)
 	highestSystemUsers := selectHighestPrioritySystemUsers(systemUsers)
 	selectedSystemUser, ok := u.h.chooseSystemUser(highestSystemUsers)
 	if !ok {

@@ -125,7 +125,7 @@ func (u *UserSelectHandler) displayMySQLResult(searchHeader string) {
 }
 
 func (u *UserSelectHandler) proxyMySQL(dbApp model.DatabaseApplication) {
-	systemUsers := service.GetUserApplicationSystemUsers(u.user.ID, dbApp.Id)
+	systemUsers := service.GetUserApplicationSystemUsers(u.user.ID, dbApp.ID)
 	highestSystemUsers := selectHighestPrioritySystemUsers(systemUsers)
 	selectedSystemUser, ok := u.h.chooseSystemUser(highestSystemUsers)
 	if !ok {
