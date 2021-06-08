@@ -498,10 +498,11 @@ func (p *Parser) CommandRecordChan() chan [3]string {
 	return p.cmdRecordChan
 }
 
-type ExecuteDCommand struct {
-	CreatedDate time.Time
+type ExecutedCommand struct {
 	Command     string
 	Output      string
+	CreatedDate time.Time
+	RiskLevel   string
 }
 
 func IsEditEnterMode(p []byte) bool {

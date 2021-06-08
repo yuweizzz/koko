@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/service"
 )
 
@@ -76,7 +76,7 @@ func finishSession(data map[string]interface{}) {
 
 func CreateCommonSwitch(p proxyEngine) (s *commonSwitch, ok bool) {
 	s = NewCommonSwitch(p)
-	ok = postSession(s.MapData())
+	//ok = postSession(s.MapData())
 	if ok {
 		AddSession(s)
 	}
@@ -87,6 +87,6 @@ func RemoveCommonSwitch(s *commonSwitch) {
 	lock.Lock()
 	defer lock.Unlock()
 	delete(sessionMap, s.ID)
-	finishSession(s.MapData())
+	//finishSession(s.MapData())
 	logger.Infof("Session %s has finished", s.ID)
 }

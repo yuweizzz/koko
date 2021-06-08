@@ -8,12 +8,11 @@ import (
 	"strings"
 	"time"
 
-
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/i18n"
-	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
@@ -29,7 +28,7 @@ func NewCommonSwitch(p proxyEngine) *commonSwitch {
 		keepAliveTime: time.Second * 60,
 		ctx:           ctx,
 		cancel:        cancel,
-		p:             p,
+		//p:             p,
 	}
 	return &c
 }
@@ -105,7 +104,8 @@ func (s *commonSwitch) generateCommandResult(command [3]string) *model.Command {
 	default:
 		riskLevel = model.NormalLevel
 	}
-	return s.p.GenerateRecordCommand(s, input, output, riskLevel)
+	//return s.p.GenerateRecordCommand(s, input, output, riskLevel)
+	return nil
 }
 
 // postBridge 桥接结束以后执行操作
