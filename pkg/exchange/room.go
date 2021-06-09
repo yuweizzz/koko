@@ -7,8 +7,7 @@ import (
 	"sync"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
-
+	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -177,7 +176,7 @@ func (r *Room) closeOnce() {
 
 func WrapperUserCon(stream io.WriteCloser) *Conn {
 	return &Conn{
-		Id:          uuid.NewV4().String(),
+		Id:          common.UUID(),
 		WriteCloser: stream,
 		created:     time.Now(),
 	}

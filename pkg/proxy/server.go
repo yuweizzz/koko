@@ -3,9 +3,12 @@ package proxy
 import (
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/common"
+	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
@@ -61,12 +64,11 @@ var (
 		资产协议是否匹配
 
 	API 相关
-		1. 获取 系统用户 的 Auth info--> 获取认证信息 ok
-		2. 获取 授权的 上传下载权限---> 校验权限
+		1. 获取 系统用户 的 Auth info--> 获取认证信息
+		2. 获取 授权权限---> 校验权限
 		3. 获取需要的domain---> 网关信息
 		4. 获取需要的过滤规则---> 获取命令过滤
 		5. 获取当前的终端配置，（录像和命令存储配置)
-		6. 获取授权的过期时间 --> 授权
 */
 
 func NewSessionServer(conn UserConnection, jmsService *service.JMService, opts ...ConnectionOption) (*SessionServer, error) {
@@ -83,13 +85,14 @@ func NewSessionServer(conn UserConnection, jmsService *service.JMService, opts .
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
 	}
+	// 过滤规则排序
+	sort.Sort(model.FilterRules(filterRules))
 	var (
 		apiSession *model.Session
 
 		sysUserAuthInfo *model.SystemUserAuthInfo
 		domainGateways  *model.Domain
 		expireInfo      *model.ExpireInfo
-		//commandParser   ParseEngine
 	)
 
 	switch connOpts.ProtocolType {
@@ -116,15 +119,12 @@ func NewSessionServer(conn UserConnection, jmsService *service.JMService, opts .
 			domainGateways = &domain
 		}
 
-		expireInfo, err := jmsService.ValidateAssetConnectPermission(connOpts.user.ID,
+		permInfo, err := jmsService.ValidateAssetConnectPermission(connOpts.user.ID,
 			connOpts.asset.ID, connOpts.systemUser.ID)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
 		}
-		if !expireInfo.HasPermission {
-			return nil, ErrPermission
-		}
-
+		expireInfo = &permInfo
 		apiSession = &model.Session{
 			ID:           common.UUID(),
 			User:         connOpts.user.String(),
@@ -159,6 +159,12 @@ func NewSessionServer(conn UserConnection, jmsService *service.JMService, opts .
 			}
 			domainGateways = &domain
 		}
+		permInfo, err := jmsService.ValidateRemoteAppPermission(connOpts.user.ID,
+			connOpts.k8sApp.ID, connOpts.systemUser.ID)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
+		}
+		expireInfo = &permInfo
 		apiSession = &model.Session{
 			ID:           common.UUID(),
 			User:         connOpts.user.String(),
@@ -220,11 +226,17 @@ func NewSessionServer(conn UserConnection, jmsService *service.JMService, opts .
 		return nil, fmt.Errorf("%w: `%s`", srvconn.ErrUnSupportedProtocol, connOpts.ProtocolType)
 	}
 
+	if !expireInfo.HasPermission {
+		return nil, ErrPermission
+	}
+
 	return &SessionServer{
+		ID:         apiSession.ID,
 		UserConn:   conn,
 		jmsService: jmsService,
 
-		authSystemUser: sysUserAuthInfo,
+		systemUserAuthInfo: sysUserAuthInfo,
+
 		filterRules:    filterRules,
 		terminalConf:   &terminalConf,
 		domainGateways: domainGateways,
@@ -248,12 +260,16 @@ func NewSessionServer(conn UserConnection, jmsService *service.JMService, opts .
 }
 
 type SessionServer struct {
+	ID         string
 	UserConn   UserConnection
 	jmsService *service.JMService
 
+	manager exchange.RoomManager
+
 	connOpts *ConnectionOptions
 
-	authSystemUser *model.SystemUserAuthInfo
+	systemUserAuthInfo *model.SystemUserAuthInfo
+
 	filterRules    []model.SystemUserFilterRule
 	terminalConf   *model.TerminalConfig
 	domainGateways *model.Domain
@@ -272,13 +288,176 @@ func (s *SessionServer) CheckPermissionExpired(now time.Time) bool {
 }
 
 func (s *SessionServer) GetFilterParser() ParseEngine {
+	switch s.connOpts.ProtocolType {
+	case srvconn.ProtocolSSH,
+		srvconn.ProtocolTELNET, srvconn.ProtocolK8s:
+		shellParser := Parser{
+			id:             s.ID,
+			protocolType:   s.connOpts.ProtocolType,
+			jmsService:     s.jmsService,
+			cmdFilterRules: s.filterRules,
+		}
+		shellParser.initial()
+		return &shellParser
+	case srvconn.ProtocolMySQL:
+		dbParser := DBParser{
+			id:             s.ID,
+			cmdFilterRules: s.filterRules,
+		}
+		dbParser.initial()
+		return &dbParser
+	}
 	return nil
 }
 
-func (s *SessionServer)GenerateRecordCommand(){
+func (s *SessionServer) GetReplayRecorder() *ReplyRecorder {
 
+	return nil
+}
+
+func (s *SessionServer) GetCommandRecorder() *CommandRecorder {
+
+	return nil
+}
+
+func (s *SessionServer) GenerateCommandItem(input, output string,
+	riskLevel int64, createdDate time.Time) *model.Command {
+	switch s.connOpts.ProtocolType {
+	case srvconn.ProtocolTELNET, srvconn.ProtocolSSH:
+		return &model.Command{
+			SessionID:   s.ID,
+			OrgID:       s.connOpts.asset.OrgID,
+			User:        s.connOpts.user.String(),
+			Server:      s.connOpts.asset.Hostname,
+			SystemUser:  s.connOpts.systemUser.String(),
+			Input:       input,
+			Output:      output,
+			Timestamp:   createdDate.Unix(),
+			RiskLevel:   riskLevel,
+			DateCreated: createdDate.UTC(),
+		}
+
+	case srvconn.ProtocolMySQL:
+		return &model.Command{
+			SessionID:   s.ID,
+			OrgID:       s.connOpts.dbApp.OrgID,
+			User:        s.connOpts.user.String(),
+			Server:      s.connOpts.dbApp.Name,
+			SystemUser:  s.connOpts.systemUser.String(),
+			Input:       input,
+			Output:      output,
+			Timestamp:   createdDate.Unix(),
+			RiskLevel:   riskLevel,
+			DateCreated: createdDate.UTC(),
+		}
+
+	case srvconn.ProtocolK8s:
+		return &model.Command{
+			SessionID: s.ID,
+			OrgID:     s.connOpts.k8sApp.OrgID,
+			User:      s.connOpts.user.String(),
+			Server: fmt.Sprintf("%s(%s)", s.connOpts.k8sApp.Name,
+				s.connOpts.k8sApp.Attrs.Cluster),
+			SystemUser:  s.connOpts.systemUser.String(),
+			Input:       input,
+			Output:      output,
+			Timestamp:   createdDate.Unix(),
+			RiskLevel:   riskLevel,
+			DateCreated: createdDate.UTC(),
+		}
+	}
+	return nil
+}
+
+func (s *SessionServer) getUsernameIfNeed() (err error) {
+	if s.systemUserAuthInfo.Username == "" {
+		logger.Infof("Conn[%s] need manuel input system user username", s.UserConn.ID())
+		var username string
+		term := utils.NewTerminal(s.UserConn, "username: ")
+		for {
+			username, err = term.ReadLine()
+			if err != nil {
+				return err
+			}
+			username = strings.TrimSpace(username)
+			if username != "" {
+				break
+			}
+		}
+		s.systemUserAuthInfo.Username = username
+		logger.Infof("Conn[%s] get username from user input: %s", s.UserConn.ID(), username)
+	}
+	return
+}
+
+func (s *SessionServer) getAuthPasswordIfNeed() (err error) {
+	if s.systemUserAuthInfo.Password == "" {
+		term := utils.NewTerminal(s.UserConn, "password: ")
+		line, err := term.ReadPassword(fmt.Sprintf("%s's password: ", s.systemUserAuthInfo.Username))
+		if err != nil {
+			logger.Errorf("Conn[%s] get password from user err: %s", s.UserConn.ID(), err.Error())
+			return err
+		}
+		s.systemUserAuthInfo.Password = line
+		logger.Infof("Conn[%s] get password from user input", s.UserConn.ID())
+	}
+	return nil
+}
+
+func (s *SessionServer) checkRequiredAuth() error {
+	switch s.connOpts.ProtocolType {
+	case srvconn.ProtocolK8s:
+		if s.systemUserAuthInfo.Token == "" {
+			msg := utils.WrapperWarn(i18n.T("You get auth token failed"))
+			utils.IgnoreErrWriteString(s.UserConn, msg)
+			return errors.New("no auth token")
+		}
+	case srvconn.ProtocolMySQL, srvconn.ProtocolTELNET:
+		if err := s.getUsernameIfNeed(); err != nil {
+			msg := utils.WrapperWarn(i18n.T("Get auth username failed"))
+			utils.IgnoreErrWriteString(s.UserConn, msg)
+			return err
+		}
+		if err := s.getAuthPasswordIfNeed(); err != nil {
+			msg := utils.WrapperWarn(i18n.T("Get auth password failed"))
+			utils.IgnoreErrWriteString(s.UserConn, msg)
+			return err
+		}
+	case srvconn.ProtocolSSH:
+		if err := s.getUsernameIfNeed(); err != nil {
+			msg := utils.WrapperWarn(i18n.T("Get auth username failed"))
+			utils.IgnoreErrWriteString(s.UserConn, msg)
+			return err
+		}
+		if s.systemUserAuthInfo.PrivateKey == "" {
+			if err := s.getAuthPasswordIfNeed(); err != nil {
+				msg := utils.WrapperWarn(i18n.T("Get auth password failed"))
+				utils.IgnoreErrWriteString(s.UserConn, msg)
+				return err
+			}
+		}
+	default:
+		return errors.New("no auth info")
+	}
+	return nil
 }
 
 func (s *SessionServer) Proxy() {
+	if err := s.checkRequiredAuth(); err != nil {
+		logger.Errorf("Conn[%s]: check basic auth failed: %s", s.UserConn.ID(), err)
+		return
+	}
+
+	if err := s.CreateSessionCallback(); err != nil {
+		msg := i18n.T("Connect with api server failed")
+		msg = utils.WrapperWarn(msg)
+		utils.IgnoreErrWriteString(s.UserConn, msg)
+		logger.Errorf("Conn[%s] submit session %s to core server err: %s",
+			s.UserConn.ID(), s.ID, msg)
+		return
+	}
+	logger.Infof("Conn[%s] create session %s success", s.UserConn.ID(), s.ID)
+
+	utils.IgnoreErrWriteWindowTitle(s.UserConn, s.connOpts.TerminalTitle())
 
 }

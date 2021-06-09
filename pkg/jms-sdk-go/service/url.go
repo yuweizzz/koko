@@ -73,3 +73,13 @@ const (
 
 	RemoteAPPURL = "/api/v1/applications/remote-apps/%s/connection-info/"
 )
+
+const (
+	AssetLoginConfirmURL = "/api/v1/acls/login-asset/check/"
+)
+
+// 命令复核
+
+const (
+	CommandConfirmURL = "/api/v1/assets/cmd-filter/command-confirm/"
+)

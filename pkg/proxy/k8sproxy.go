@@ -19,7 +19,7 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-var _ proxyEngine = (*K8sProxyServer)(nil)
+//var _ proxyEngine = (*K8sProxyServer)(nil)
 
 type K8sProxyServer struct {
 	UserConn   UserConnection
@@ -165,10 +165,11 @@ func (p *K8sProxyServer) sendConnectErrorMsg(err error) {
 }
 
 func (p *K8sProxyServer) createDomainGateway(domainId string) (*domainGateway, error) {
-	domain := service.GetDomainGateways(domainId)
-	if domain.ID == "" {
-		return nil, errors.New("invalid domain")
-	}
+	//domain := service.GetDomainGateways(domainId)
+	//if domain.ID == "" {
+	//	return nil, errors.New("invalid domain")
+	//}
+	var domain model.Domain
 	clusterUrl, err := url.Parse(p.Cluster.Attrs.Cluster)
 	if err != nil {
 		logger.Errorf("K8s proxy parse %s url err: %s", p.Cluster.Attrs.Cluster, err)
@@ -213,7 +214,8 @@ func (p *K8sProxyServer) Proxy() {
 	logger.Infof("Conn[%s] checking pre requisite success", p.UserConn.ID())
 	// 创建Session
 
-	sw, ok := CreateCommonSwitch(p)
+	//sw, ok := CreateCommonSwitch(p)
+	sw, ok := commonSwitch{}, false
 	logger.Info("Create Common Switch", ok)
 	if !ok {
 		msg := i18n.T("Create k8s session failed")
@@ -223,7 +225,7 @@ func (p *K8sProxyServer) Proxy() {
 		return
 	}
 	logger.Infof("Conn[%s] create k8s session %s success", p.UserConn.ID(), sw.ID)
-	defer RemoveCommonSwitch(sw)
+	//defer RemoveCommonSwitch(sw)
 	var localTunnelAddr *net.TCPAddr
 	if p.Cluster.Domain != "" {
 		dGateway, err := p.createDomainGateway(p.Cluster.Domain)
@@ -258,59 +260,60 @@ func (p *K8sProxyServer) Proxy() {
 	logger.Infof("Conn[%s] end k8s session %s bridge", p.UserConn.ID(), sw.ID)
 }
 
-func (p *K8sProxyServer) GenerateRecordCommand(s *commonSwitch, input, output string,
-	riskLevel int64) *model.Command {
-	return &model.Command{
-		SessionID:  s.ID,
-		OrgID:      p.Cluster.OrgID,
-		Input:      input,
-		Output:     output,
-		User:       fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
-		Server:     fmt.Sprintf("%s(%s)", p.Cluster.Name, p.Cluster.Attrs.Cluster),
-		SystemUser: fmt.Sprintf("%s(%s)", p.SystemUser.Name, p.SystemUser.Username),
-		Timestamp:  time.Now().Unix(),
-		RiskLevel:  riskLevel,
-
-		DateCreated: time.Now(),
-	}
-}
+//func (p *K8sProxyServer) GenerateRecordCommand(s *commonSwitch, input, output string,
+//	riskLevel int64) *model.Command {
+//	return &model.Command{
+//		SessionID:  s.ID,
+//		OrgID:      p.Cluster.OrgID,
+//		Input:      input,
+//		Output:     output,
+//		User:       fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
+//		Server:     fmt.Sprintf("%s(%s)", p.Cluster.Name, p.Cluster.Attrs.Cluster),
+//		SystemUser: fmt.Sprintf("%s(%s)", p.SystemUser.Name, p.SystemUser.Username),
+//		Timestamp:  time.Now().Unix(),
+//		RiskLevel:  riskLevel,
+//
+//		DateCreated: time.Now(),
+//	}
+//}
 
 func (p *K8sProxyServer) NewParser(s *commonSwitch) ParseEngine {
-	shellParser := newParser(s.ID, p.SystemUser.Protocol)
-	msg := i18n.T("Create k8s session failed")
-	if cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID); err == nil {
-		shellParser.SetCMDFilterRules(cmdRules)
-	} else {
-		msg = utils.WrapperWarn(msg)
-		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Error(msg + err.Error())
-	}
-	return shellParser
+	//shellParser := newParser(s.ID, p.SystemUser.Protocol)
+	//msg := i18n.T("Create k8s session failed")
+	//if cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID); err == nil {
+	//	shellParser.SetCMDFilterRules(cmdRules)
+	//} else {
+	//	msg = utils.WrapperWarn(msg)
+	//	utils.IgnoreErrWriteString(p.UserConn, msg)
+	//	logger.Error(msg + err.Error())
+	//}
+	//return shellParser
+	return nil
 }
 
-func (p *K8sProxyServer) MapData(s *commonSwitch) map[string]interface{} {
-	var dataEnd interface{}
-	if s.DateEnd != "" {
-		dataEnd = s.DateEnd
-	}
-	return map[string]interface{}{
-		"id":             s.ID,
-		"user":           fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
-		"asset":          p.Cluster.Name,
-		"org_id":         p.Cluster.OrgID,
-		"login_from":     p.UserConn.LoginFrom(),
-		"system_user":    fmt.Sprintf("%s(%s)", p.SystemUser.Name, p.SystemUser.Username),
-		"protocol":       p.SystemUser.Protocol,
-		"remote_addr":    p.UserConn.RemoteAddr(),
-		"is_finished":    s.finished,
-		"date_start":     s.DateStart,
-		"date_end":       dataEnd,
-		"user_id":        p.User.ID,
-		"asset_id":       p.Cluster.ID,
-		"system_user_id": p.SystemUser.ID,
-		"is_success":     s.isConnected,
-	}
-}
+//func (p *K8sProxyServer) MapData(s *commonSwitch) map[string]interface{} {
+//	var dataEnd interface{}
+//	if s.DateEnd != "" {
+//		dataEnd = s.DateEnd
+//	}
+//	return map[string]interface{}{
+//		"id":             s.ID,
+//		"user":           fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
+//		"asset":          p.Cluster.Name,
+//		"org_id":         p.Cluster.OrgID,
+//		"login_from":     p.UserConn.LoginFrom(),
+//		"system_user":    fmt.Sprintf("%s(%s)", p.SystemUser.Name, p.SystemUser.Username),
+//		"protocol":       p.SystemUser.Protocol,
+//		"remote_addr":    p.UserConn.RemoteAddr(),
+//		"is_finished":    s.finished,
+//		"date_start":     s.DateStart,
+//		"date_end":       dataEnd,
+//		"user_id":        p.User.ID,
+//		"asset_id":       p.Cluster.ID,
+//		"system_user_id": p.SystemUser.ID,
+//		"is_success":     s.isConnected,
+//	}
+//}
 
 func (p *K8sProxyServer) CheckPermissionExpired(now time.Time) bool {
 	return p.permissionExpireTime < now.Unix()

@@ -1,12 +1,8 @@
 package proxy
 
 import (
-	"sync"
-	"time"
-
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/service"
+	"sync"
 )
 
 var sessionMap = make(map[string]Session)
@@ -21,7 +17,7 @@ func HandleSessionTask(task model.TerminalTask) {
 	switch task.Name {
 	case "kill_session":
 		if ok := KillSession(task.Args); ok {
-			service.FinishTask(task.ID)
+			//service.FinishTask(task.ID)
 		}
 	default:
 
@@ -54,39 +50,39 @@ func GetAliveSessionCount() int {
 	return len(sessionMap)
 }
 
-func AddSession(sw Session) {
-	lock.Lock()
-	defer lock.Unlock()
-	sessionMap[sw.SessionID()] = sw
-}
+//func AddSession(sw Session) {
+//	lock.Lock()
+//	defer lock.Unlock()
+//	sessionMap[sw.SessionID()] = sw
+//}
 
-func postSession(data map[string]interface{}) bool {
-	for i := 0; i < 5; i++ {
-		if service.CreateSession(data) {
-			return true
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
-	return false
-}
+//func postSession(data map[string]interface{}) bool {
+//	for i := 0; i < 5; i++ {
+//		if service.CreateSession(data) {
+//			return true
+//		}
+//		time.Sleep(200 * time.Millisecond)
+//	}
+//	return false
+//}
 
-func finishSession(data map[string]interface{}) {
-	service.FinishSession(data)
-}
+//func finishSession(data map[string]interface{}) {
+//	service.FinishSession(data)
+//}
 
-func CreateCommonSwitch(p proxyEngine) (s *commonSwitch, ok bool) {
-	s = NewCommonSwitch(p)
-	//ok = postSession(s.MapData())
-	if ok {
-		AddSession(s)
-	}
-	return s, ok
-}
+//func CreateCommonSwitch(p proxyEngine) (s *commonSwitch, ok bool) {
+//	s = NewCommonSwitch(p)
+//	//ok = postSession(s.MapData())
+//	if ok {
+//		AddSession(s)
+//	}
+//	return s, ok
+//}
 
-func RemoveCommonSwitch(s *commonSwitch) {
-	lock.Lock()
-	defer lock.Unlock()
-	delete(sessionMap, s.ID)
-	//finishSession(s.MapData())
-	logger.Infof("Session %s has finished", s.ID)
-}
+//func RemoveCommonSwitch(s *commonSwitch) {
+//	lock.Lock()
+//	defer lock.Unlock()
+//	delete(sessionMap, s.ID)
+//	//finishSession(s.MapData())
+//	logger.Infof("Session %s has finished", s.ID)
+//}

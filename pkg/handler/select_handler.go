@@ -8,8 +8,8 @@ import (
 
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -46,6 +46,8 @@ type UserSelectHandler struct {
 	currentResult []map[string]interface{}
 
 	*pageInfo
+
+	jmsService *service.JMService
 }
 
 func (u *UserSelectHandler) SetSelectType(s selectType) {
@@ -215,8 +217,8 @@ func (u *UserSelectHandler) Proxy(target map[string]interface{}) {
 	targetId := target["id"].(string)
 	switch u.currentType {
 	case TypeAsset, TypeNodeAsset:
-		asset := service.GetAsset(targetId)
-		if asset.ID == "" {
+		asset, err := u.jmsService.GetAssetById(targetId)
+		if err != nil || asset.ID == "" {
 			logger.Errorf("Select asset %s not found", targetId)
 			return
 		}
@@ -228,15 +230,15 @@ func (u *UserSelectHandler) Proxy(target map[string]interface{}) {
 		}
 		u.proxyAsset(asset)
 	case TypeK8s:
-		app := service.GetK8sApplication(targetId)
-		if app.ID == "" {
+		app, err := u.jmsService.GetK8sApplicationById(targetId)
+		if err != nil || app.ID == "" {
 			logger.Errorf("Select k8s %s not found", targetId)
 			return
 		}
 		u.proxyK8s(app)
 	case TypeMySQL:
-		app := service.GetMySQLApplication(targetId)
-		if app.ID == "" {
+		app, err := u.jmsService.GetMySQLApplicationById(targetId)
+		if err != nil || app.ID == "" {
 			logger.Errorf("Select MySQL %s not found", targetId)
 			return
 		}

@@ -14,7 +14,7 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-var _ proxyEngine = (*ProxyServer)(nil)
+//var _ proxyEngine = (*ProxyServer)(nil)
 
 type ProxyServer struct {
 	UserConn   UserConnection
@@ -73,7 +73,7 @@ func (p *ProxyServer) getSystemUserUsernameIfNeed() (err error) {
 func (p *ProxyServer) getSystemUserBasicInfo() {
 	logger.Infof("Conn[%s] start to get systemUser auth info from core server", p.UserConn.ID())
 	var info model.SystemUserAuthInfo
-	info = service.GetUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID, p.User.ID, p.User.Username)
+	//info = service.GetUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID, p.User.ID, p.User.Username)
 	p.SystemUser.Username = info.Username
 	p.SystemUser.Password = info.Password
 	p.SystemUser.PrivateKey = info.PrivateKey
@@ -337,18 +337,20 @@ func (p *ProxyServer) sendConnectErrorMsg(err error) {
 }
 
 func (p *ProxyServer) getAssetCharset() string {
-	platform := service.GetAssetPlatform(p.Asset.ID)
-	charset := strings.ToLower(platform.Charset)
-	logger.Infof("Conn[%s] asset %s charset use: %s",
-		p.UserConn.ID(), p.Asset.Hostname, charset)
-	return charset
+	//platform := service.GetAssetPlatform(p.Asset.ID)
+	//charset := strings.ToLower(platform.Charset)
+	//logger.Infof("Conn[%s] asset %s charset use: %s",
+	//	p.UserConn.ID(), p.Asset.Hostname, charset)
+	//return charset
+	return "charset"
 }
 
 func (p *ProxyServer) checkLoginConfirm() bool {
-	srv := service.NewLoginConfirm(service.ConfirmWithUser(p.User),
-		service.ConfirmWithSystemUser(p.SystemUser),
-		service.ConfirmWithTargetID(p.Asset.ID))
-	return validateLoginConfirm(&srv, p.UserConn)
+	//srv := service.NewLoginConfirm(service.ConfirmWithUser(p.User),
+	//	service.ConfirmWithSystemUser(p.SystemUser),
+	//	service.ConfirmWithTargetID(p.Asset.ID))
+	//return validateLoginConfirm(&srv, p.UserConn)
+	return false
 }
 
 // Proxy 代理
@@ -364,7 +366,7 @@ func (p *ProxyServer) Proxy() {
 	}
 	logger.Infof("Conn[%s] checking pre requisite success", p.UserConn.ID())
 	// 创建Session
-	sw, ok := CreateCommonSwitch(p)
+	sw, ok := commonSwitch{}, false
 	if !ok {
 		msg := i18n.T("Connect with api server failed")
 		if p.cacheSSHConnection != nil {
@@ -376,7 +378,7 @@ func (p *ProxyServer) Proxy() {
 		return
 	}
 	logger.Infof("Conn[%s] create session %s success", p.UserConn.ID(), sw.ID)
-	defer RemoveCommonSwitch(sw)
+	//defer RemoveCommonSwitch(sw)
 	srvConn, err := p.getServerConn()
 	// 连接后端服务器失败
 	if err != nil {
@@ -394,60 +396,61 @@ func (p *ProxyServer) Proxy() {
 	logger.Infof("Conn[%s] end session %s bridge", p.UserConn.ID(), sw.ID)
 }
 
-func (p *ProxyServer) MapData(s *commonSwitch) map[string]interface{} {
-	var dataEnd interface{}
-	if s.DateEnd != "" {
-		dataEnd = s.DateEnd
-	}
-	return map[string]interface{}{
-		"id":             s.ID,
-		"user":           fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
-		"asset":          p.Asset.Hostname,
-		"org_id":         p.Asset.OrgID,
-		"login_from":     p.UserConn.LoginFrom(),
-		"system_user":    p.SystemUser.Username,
-		"protocol":       p.SystemUser.Protocol,
-		"remote_addr":    p.UserConn.RemoteAddr(),
-		"is_finished":    s.finished,
-		"date_start":     s.DateStart,
-		"date_end":       dataEnd,
-		"user_id":        p.User.ID,
-		"asset_id":       p.Asset.ID,
-		"system_user_id": p.SystemUser.ID,
-		"is_success":     s.isConnected,
-	}
-}
+//
+//func (p *ProxyServer) MapData(s *commonSwitch) map[string]interface{} {
+//	var dataEnd interface{}
+//	if s.DateEnd != "" {
+//		dataEnd = s.DateEnd
+//	}
+//	return map[string]interface{}{
+//		"id":             s.ID,
+//		"user":           fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
+//		"asset":          p.Asset.Hostname,
+//		"org_id":         p.Asset.OrgID,
+//		"login_from":     p.UserConn.LoginFrom(),
+//		"system_user":    p.SystemUser.Username,
+//		"protocol":       p.SystemUser.Protocol,
+//		"remote_addr":    p.UserConn.RemoteAddr(),
+//		"is_finished":    s.finished,
+//		"date_start":     s.DateStart,
+//		"date_end":       dataEnd,
+//		"user_id":        p.User.ID,
+//		"asset_id":       p.Asset.ID,
+//		"system_user_id": p.SystemUser.ID,
+//		"is_success":     s.isConnected,
+//	}
+//}
 
-func (p *ProxyServer) NewParser(s *commonSwitch) ParseEngine {
-	shellParser := newParser(s.ID, p.SystemUser.Protocol)
-	msg := i18n.T("Create session failed")
-	if cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID); err == nil {
-		logger.Infof("Conn[%s] get command filter rules success", p.UserConn.ID())
-		shellParser.SetCMDFilterRules(cmdRules)
-	} else {
-		msg = utils.WrapperWarn(msg)
-		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Error(msg + err.Error())
-	}
-	return shellParser
-}
+//func (p *ProxyServer) NewParser(s *commonSwitch) ParseEngine {
+//	shellParser := newParser(s.ID, p.SystemUser.Protocol)
+//	msg := i18n.T("Create session failed")
+//	if cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID); err == nil {
+//		logger.Infof("Conn[%s] get command filter rules success", p.UserConn.ID())
+//		shellParser.SetCMDFilterRules(cmdRules)
+//	} else {
+//		msg = utils.WrapperWarn(msg)
+//		utils.IgnoreErrWriteString(p.UserConn, msg)
+//		logger.Error(msg + err.Error())
+//	}
+//	return shellParser
+//}
 
-func (p *ProxyServer) GenerateRecordCommand(s *commonSwitch, input, output string,
-	riskLevel int64) *model.Command {
-	return &model.Command{
-		SessionID:  s.ID,
-		OrgID:      p.Asset.OrgID,
-		Input:      input,
-		Output:     output,
-		User:       fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
-		Server:     p.Asset.Hostname,
-		SystemUser: p.SystemUser.Username,
-		Timestamp:  time.Now().Unix(),
-		RiskLevel:  riskLevel,
-
-		DateCreated: time.Now(),
-	}
-}
+//func (p *ProxyServer) GenerateRecordCommand(s *commonSwitch, input, output string,
+//	riskLevel int64) *model.Command {
+//	return &model.Command{
+//		SessionID:  s.ID,
+//		OrgID:      p.Asset.OrgID,
+//		Input:      input,
+//		Output:     output,
+//		User:       fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
+//		Server:     p.Asset.Hostname,
+//		SystemUser: p.SystemUser.Username,
+//		Timestamp:  time.Now().Unix(),
+//		RiskLevel:  riskLevel,
+//
+//		DateCreated: time.Now(),
+//	}
+//}
 
 func (p *ProxyServer) CheckPermissionExpired(now time.Time) bool {
 	return p.permissionExpireTime < now.Unix()

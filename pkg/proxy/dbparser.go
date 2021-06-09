@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/i18n"
@@ -20,20 +21,21 @@ const (
 
 var _ ParseEngine = (*DBParser)(nil)
 
-func newDBParser(id string) DBParser {
-	dbParser := DBParser{
-		id: id,
-	}
-	dbParser.initial()
-	return dbParser
-}
+//func newDBParser(id string) DBParser {
+//	dbParser := DBParser{
+//		id: id,
+//	}
+//	dbParser.initial()
+//	return dbParser
+//}
 
 type DBParser struct {
 	id string
 
 	userOutputChan chan []byte
 	srvOutputChan  chan []byte
-	cmdRecordChan  chan [3]string
+	//cmdRecordChan  chan [3]string
+	cmdRecordChan chan *ExecutedCommand
 
 	inputInitial  bool
 	inputPreState bool
@@ -43,6 +45,7 @@ type DBParser struct {
 
 	command         string
 	output          string
+	cmdCreateDate   time.Time
 	cmdInputParser  *CmdParser
 	cmdOutputParser *CmdParser
 
@@ -58,7 +61,8 @@ func (p *DBParser) initial() {
 	p.cmdOutputParser = NewCmdParser(p.id, DBOutputParserName)
 
 	p.closed = make(chan struct{})
-	p.cmdRecordChan = make(chan [3]string, 1024)
+	//p.cmdRecordChan = make(chan [3]string, 1024)
+	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
 }
 
 // ParseStream 解析数据流
@@ -126,7 +130,11 @@ func (p *DBParser) parseInputState(b []byte) []byte {
 			fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
 			_, _ = p.cmdOutputParser.WriteData([]byte(fbdMsg))
 			p.srvOutputChan <- []byte("\r\n" + fbdMsg)
-			p.cmdRecordChan <- [3]string{p.command, fbdMsg, model.HighRiskFlag}
+			p.cmdRecordChan <- &ExecutedCommand{
+				Command:     p.command,
+				Output:      fbdMsg,
+				CreatedDate: p.cmdCreateDate,
+				RiskLevel:   model.HighRiskFlag}
 			p.command = ""
 			p.output = ""
 			return []byte{utils.CharCleanLine, '\r'}
@@ -224,7 +232,11 @@ func (p *DBParser) Close() {
 func (p *DBParser) sendCommandRecord() {
 	if p.command != "" {
 		p.parseCmdOutput()
-		p.cmdRecordChan <- [3]string{p.command, p.output, model.LessRiskFlag}
+		p.cmdRecordChan <- &ExecutedCommand{
+			Command:     p.command,
+			Output:      p.output,
+			CreatedDate: p.cmdCreateDate,
+			RiskLevel:   model.LessRiskFlag}
 		p.command = ""
 		p.output = ""
 	}
@@ -234,6 +246,6 @@ func (p *DBParser) NeedRecord() bool {
 	return true
 }
 
-func (p *DBParser) CommandRecordChan() chan [3]string {
+func (p *DBParser) CommandRecordChan() chan *ExecutedCommand{
 	return p.cmdRecordChan
 }

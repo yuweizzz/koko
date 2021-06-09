@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"net"
 	"os/exec"
@@ -18,7 +17,7 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-var _ proxyEngine = (*DBProxyServer)(nil)
+//var _ proxyEngine = (*DBProxyServer)(nil)
 
 type DBProxyServer struct {
 	UserConn   UserConnection
@@ -212,16 +211,17 @@ func (p *DBProxyServer) sendConnectErrorMsg(err error) {
 }
 
 func (p *DBProxyServer) createDomainGateway(domainId string) (*domainGateway, error) {
-	domain := service.GetDomainGateways(domainId)
-	if domain.ID == "" {
-		return nil, errors.New("invalid domain")
-	}
-	dGateway := domainGateway{
-		domain:  &domain,
-		dstIP:   p.Database.Attrs.Host,
-		dstPort: p.Database.Attrs.Port,
-	}
-	return &dGateway, nil
+	//domain := service.GetDomainGateways(domainId)
+	//if domain.ID == "" {
+	//	return nil, errors.New("invalid domain")
+	//}
+	//dGateway := domainGateway{
+	//	domain:  &domain,
+	//	dstIP:   p.Database.Attrs.Host,
+	//	dstPort: p.Database.Attrs.Port,
+	//}
+	//return &dGateway, nil
+	return nil, nil
 }
 
 // Proxy 代理
@@ -233,7 +233,8 @@ func (p *DBProxyServer) Proxy() {
 	logger.Infof("Conn[%s] checking pre requisite success", p.UserConn.ID())
 
 	// 创建Session
-	sw, ok := CreateCommonSwitch(p)
+	//sw, ok := CreateCommonSwitch(nil)
+	sw, ok := commonSwitch{}, false
 	if !ok {
 		msg := i18n.T("Create database session failed")
 		msg = utils.WrapperWarn(msg)
@@ -242,7 +243,7 @@ func (p *DBProxyServer) Proxy() {
 		return
 	}
 	logger.Infof("Conn[%s] create database session %s success", p.UserConn.ID(), sw.ID)
-	defer RemoveCommonSwitch(sw)
+	//defer RemoveCommonSwitch(sw)
 	var localTunnelAddr *net.TCPAddr
 	if p.Database.Domain != "" {
 		dGateway, err := p.createDomainGateway(p.Database.Domain)
@@ -295,8 +296,8 @@ func (p *DBProxyServer) GenerateRecordCommand(s *commonSwitch, input, output str
 	}
 }
 
-func (p *DBProxyServer) NewParser(s *commonSwitch) ParseEngine {
-	dbParser := newDBParser(s.ID)
+func (p *DBProxyServer) NewParser(s *commonSwitch)  {
+	//dbParser := newDBParser(s.ID)
 	//msg := i18n.T("Create database session failed")
 	//if cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID); err == nil {
 	//	//dbParser.SetCMDFilterRules(cmdRules)
@@ -305,32 +306,32 @@ func (p *DBProxyServer) NewParser(s *commonSwitch) ParseEngine {
 	//	utils.IgnoreErrWriteString(p.UserConn, msg)
 	//	logger.Error(msg + err.Error())
 	//}
-	return &dbParser
+	//return &dbParser
 }
 
-func (p *DBProxyServer) MapData(s *commonSwitch) map[string]interface{} {
-	var dataEnd interface{}
-	if s.DateEnd != "" {
-		dataEnd = s.DateEnd
-	}
-	return map[string]interface{}{
-		"id":             s.ID,
-		"user":           fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
-		"asset":          p.Database.Name,
-		"org_id":         p.Database.OrgID,
-		"login_from":     p.UserConn.LoginFrom(),
-		"system_user":    p.SystemUser.Username,
-		"protocol":       p.SystemUser.Protocol,
-		"remote_addr":    p.UserConn.RemoteAddr(),
-		"is_finished":    s.finished,
-		"date_start":     s.DateStart,
-		"date_end":       dataEnd,
-		"user_id":        p.User.ID,
-		"asset_id":       p.Database.ID,
-		"system_user_id": p.SystemUser.ID,
-		"is_success":     s.isConnected,
-	}
-}
+//func (p *DBProxyServer) MapData(s *commonSwitch) map[string]interface{} {
+//	var dataEnd interface{}
+//	if s.DateEnd != "" {
+//		dataEnd = s.DateEnd
+//	}
+//	return map[string]interface{}{
+//		"id":             s.ID,
+//		"user":           fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
+//		"asset":          p.Database.Name,
+//		"org_id":         p.Database.OrgID,
+//		"login_from":     p.UserConn.LoginFrom(),
+//		"system_user":    p.SystemUser.Username,
+//		"protocol":       p.SystemUser.Protocol,
+//		"remote_addr":    p.UserConn.RemoteAddr(),
+//		"is_finished":    s.finished,
+//		"date_start":     s.DateStart,
+//		"date_end":       dataEnd,
+//		"user_id":        p.User.ID,
+//		"asset_id":       p.Database.ID,
+//		"system_user_id": p.SystemUser.ID,
+//		"is_success":     s.isConnected,
+//	}
+//}
 
 func (p *DBProxyServer) CheckPermissionExpired(now time.Time) bool {
 	return p.permissionExpireTime < now.Unix()

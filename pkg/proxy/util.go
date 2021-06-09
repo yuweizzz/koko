@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	storage "github.com/jumpserver/koko/pkg/proxy/recorderstorage"
 )
 
@@ -21,12 +22,8 @@ type CommandStorage interface {
 	StorageType
 }
 
-var defaultStorage = storage.ServerStorage{StorageType: "server"}
-
-func NewReplayStorage() ReplayStorage {
-	// todo： 存储配置
-	//cf := config.GetConf().ReplayStorage
-	cf := map[string]interface{}{}
+func NewReplayStorage(jmsService *service.JMService, conf *model.TerminalConfig) ReplayStorage {
+	cf := conf.ReplayStorage
 	tp, ok := cf["TYPE"]
 	if !ok {
 		tp = "server"
@@ -146,14 +143,12 @@ func NewReplayStorage() ReplayStorage {
 	case "null":
 		return storage.NewNullStorage()
 	default:
-		return defaultStorage
+		return storage.ServerStorage{StorageType: "server", JmsService: jmsService}
 	}
 }
 
-func NewCommandStorage() CommandStorage {
-	// todo： 命令配置
-	//cf := config.GetConf().CommandStorage
-	cf := map[string]interface{}{}
+func NewCommandStorage(jmsService *service.JMService, conf *model.TerminalConfig) CommandStorage {
+	cf := conf.CommandStorage
 	tp, ok := cf["TYPE"]
 	if !ok {
 		tp = "server"
@@ -196,6 +191,6 @@ func NewCommandStorage() CommandStorage {
 	case "null":
 		return storage.NewNullStorage()
 	default:
-		return defaultStorage
+		return storage.ServerStorage{StorageType: "server", JmsService: jmsService}
 	}
 }

@@ -21,8 +21,8 @@ func NewCommonSwitch(p proxyEngine) *commonSwitch {
 	ctx, cancel := context.WithCancel(context.Background())
 	MaxIdleTime := time.Duration(30)
 	c := commonSwitch{
-		ID:        common.UUID(),
-		DateStart: common.CurrentUTCTime(),
+		ID: common.UUID(),
+		//DateStart: common.CurrentUTCTime(),
 		//MaxIdleTime:   config.GetConf().MaxIdleTime,
 		MaxIdleTime:   MaxIdleTime, // todo: 最大空闲时间
 		keepAliveTime: time.Second * 60,
@@ -34,12 +34,7 @@ func NewCommonSwitch(p proxyEngine) *commonSwitch {
 }
 
 type commonSwitch struct {
-	ID        string
-	DateStart string
-	DateEnd   string
-	finished  bool
-
-	isConnected bool
+	ID string
 
 	MaxIdleTime time.Duration
 
@@ -65,14 +60,15 @@ func (s *commonSwitch) SessionID() string {
 	return s.ID
 }
 
-func (s *commonSwitch) recordCommand(cmdRecordChan chan [3]string) {
+func (s *commonSwitch) recordCommand(cmdRecordChan chan *ExecutedCommand) {
 	// 命令记录
-	cmdRecorder := NewCommandRecorder(s.ID)
-	for command := range cmdRecordChan {
-		if command[0] == "" {
+	//cmdRecorder := NewCommandRecorder(s.ID)
+	cmdRecorder := s.p.GetCommandRecorder()
+	for item := range cmdRecordChan {
+		if item.Command == "" {
 			continue
 		}
-		cmd := s.generateCommandResult(command)
+		cmd := s.generateCommandResult(item)
 		cmdRecorder.Record(cmd)
 	}
 	// 关闭命令记录
@@ -80,54 +76,40 @@ func (s *commonSwitch) recordCommand(cmdRecordChan chan [3]string) {
 }
 
 // generateCommandResult 生成命令结果
-func (s *commonSwitch) generateCommandResult(command [3]string) *model.Command {
+func (s *commonSwitch) generateCommandResult(item *ExecutedCommand) *model.Command {
 	var input string
 	var output string
 	var riskLevel int64
-	if len(command[0]) > 128 {
-		input = command[0][:128]
+	if len(item.Command) > 128 {
+		input = item.Command[:128]
 	} else {
-		input = command[0]
+		input = item.Command
 	}
-	i := strings.LastIndexByte(command[1], '\r')
+	i := strings.LastIndexByte(item.Output, '\r')
 	if i <= 0 {
-		output = command[1]
+		output = item.Output
 	} else if i > 0 && i < 1024 {
-		output = command[1][:i]
+		output = item.Output[:i]
 	} else {
-		output = command[1][:1024]
+		output = item.Output[:1024]
 	}
 
-	switch command[2] {
+	switch item.RiskLevel {
 	case model.HighRiskFlag:
 		riskLevel = model.DangerLevel
 	default:
 		riskLevel = model.NormalLevel
 	}
-	//return s.p.GenerateRecordCommand(s, input, output, riskLevel)
-	return nil
+	return s.p.GenerateCommandItem(input, output, riskLevel, item.CreatedDate)
 }
-
-// postBridge 桥接结束以后执行操作
-//func (s *commonSwitch) postBridge() {
-//	s.DateEnd = common.CurrentUTCTime()
-//	s.finished = true
-//}
-
-//func (s *commonSwitch) MapData() map[string]interface{} {
-//	return s.p.MapData(s)
-//}
 
 // Bridge 桥接两个链接
 func (s *commonSwitch) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
-	var (
-		replayRecorder ReplyRecorder
-	)
-	s.isConnected = true
-	//parser := s.p.NewParser(s)
+
 	parser := s.p.GetFilterParser()
 	logger.Infof("Conn[%s] create ParseEngine success", userConn.ID())
-	replayRecorder = NewReplyRecord(s.ID)
+	//replayRecorder = NewReplyRecord(s.ID)
+	replayRecorder := s.p.GetReplayRecorder()
 	logger.Infof("Conn[%s] create replay success", userConn.ID())
 	srvInChan := make(chan []byte, 1)
 	done := make(chan struct{})
