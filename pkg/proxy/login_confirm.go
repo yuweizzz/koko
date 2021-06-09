@@ -1,17 +1,6 @@
 package proxy
 
-import (
-	"context"
-	"fmt"
-	"strings"
-	"time"
-
-	"github.com/jumpserver/koko/pkg/i18n"
-	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/service"
-	"github.com/jumpserver/koko/pkg/utils"
-)
-
+/*
 // 校验用户登录资产是否需要复核
 func validateLoginConfirm(srv *service.LoginConfirmService, userCon UserConnection) bool {
 	ok, err := srv.CheckIsNeedLoginConfirm()
@@ -99,3 +88,5 @@ func validateLoginConfirm(srv *service.LoginConfirmService, userCon UserConnecti
 	utils.IgnoreErrWriteString(userCon, utils.CharNewLine)
 	return success
 }
+
+*/
