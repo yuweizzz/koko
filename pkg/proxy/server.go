@@ -3,6 +3,7 @@ package proxy
 import (
 	"errors"
 	"fmt"
+	"github.com/jumpserver/koko/pkg/config"
 	"sort"
 	"strings"
 	"time"
@@ -253,9 +254,6 @@ func NewSessionServer(conn UserConnection, jmsService *service.JMService, opts .
 		DisConnectedCallback: func() error {
 			return jmsService.SessionDisconnect(apiSession.ID)
 		},
-		FinishReplayCallback: func() error {
-			return jmsService.FinishReply(apiSession.ID)
-		},
 	}, nil
 }
 
@@ -280,7 +278,6 @@ type SessionServer struct {
 	ConnectedSuccessCallback func() error
 	ConnectedFailedCallback  func(err error) error
 	DisConnectedCallback     func() error
-	FinishReplayCallback     func() error
 }
 
 func (s *SessionServer) CheckPermissionExpired(now time.Time) bool {
@@ -416,12 +413,12 @@ func (s *SessionServer) checkRequiredAuth() error {
 		if err := s.getUsernameIfNeed(); err != nil {
 			msg := utils.WrapperWarn(i18n.T("Get auth username failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
-			return err
+			return fmt.Errorf("get auth username failed: %s", err)
 		}
 		if err := s.getAuthPasswordIfNeed(); err != nil {
 			msg := utils.WrapperWarn(i18n.T("Get auth password failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
-			return err
+			return fmt.Errorf("get auth password failed: %s", err)
 		}
 	case srvconn.ProtocolSSH:
 		if err := s.getUsernameIfNeed(); err != nil {
@@ -429,6 +426,11 @@ func (s *SessionServer) checkRequiredAuth() error {
 			utils.IgnoreErrWriteString(s.UserConn, msg)
 			return err
 		}
+		// todo: 获取复用的 SSHClient
+		if s.checkRequireReuseClient() {
+
+		}
+
 		if s.systemUserAuthInfo.PrivateKey == "" {
 			if err := s.getAuthPasswordIfNeed(); err != nil {
 				msg := utils.WrapperWarn(i18n.T("Get auth password failed"))
@@ -440,6 +442,27 @@ func (s *SessionServer) checkRequiredAuth() error {
 		return errors.New("no auth info")
 	}
 	return nil
+}
+
+const (
+	linuxPlatform = "linux"
+)
+
+func (s *SessionServer) checkRequireReuseClient() bool {
+	if config.GetConf().ReuseConnection {
+		platformMatched := s.connOpts.asset.Platform == linuxPlatform
+		protocolMatched := s.connOpts.systemUser.Protocol == model.ProtocolSSH
+		return platformMatched && protocolMatched
+	}
+	return false
+}
+
+func (s *SessionServer) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
+	keyId := MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID,
+		s.connOpts.systemUser.ID, s.systemUserAuthInfo.Username, s.connOpts.asset.IP)
+	srvconn.GetClientFromCache(keyId)
+
+	return
 }
 
 func (s *SessionServer) Proxy() {
@@ -460,4 +483,8 @@ func (s *SessionServer) Proxy() {
 
 	utils.IgnoreErrWriteWindowTitle(s.UserConn, s.connOpts.TerminalTitle())
 
+}
+
+func MakeReuseSSHClientKey(userId, assetId, sysUserId, username, ip string) string {
+	return fmt.Sprintf("%s_%s_%s_%s_%s", userId, assetId, sysUserId, username, ip)
 }

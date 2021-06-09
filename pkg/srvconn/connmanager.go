@@ -13,7 +13,6 @@ import (
 
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/service"
 )
 
 var sshManager = &SSHManager{data: make(map[string]*UserSSHClient)}
@@ -256,19 +255,19 @@ func MakeConfig(asset *model.Asset, systemUser *model.SystemUser, timeout time.D
 	proxyConfigs := make([]*SSHClientConfig, 0)
 	// 如果有网关则从网关中连接
 	if asset.Domain != "" {
-		gateways := service.GetAssetGateways(asset.ID)
-		if len(gateways) > 0 {
-			for _, gateway := range gateways {
-				proxyConfigs = append(proxyConfigs, &SSHClientConfig{
-					Host:       gateway.IP,
-					Port:       strconv.Itoa(gateway.Port),
-					User:       gateway.Username,
-					Password:   gateway.Password,
-					PrivateKey: gateway.PrivateKey,
-					Timeout:    timeout,
-				})
-			}
-		}
+		//gateways := service.GetAssetGateways(asset.ID)
+		//if len(gateways) > 0 {
+		//	for _, gateway := range gateways {
+		//		proxyConfigs = append(proxyConfigs, &SSHClientConfig{
+		//			Host:       gateway.IP,
+		//			Port:       strconv.Itoa(gateway.Port),
+		//			User:       gateway.Username,
+		//			Password:   gateway.Password,
+		//			PrivateKey: gateway.PrivateKey,
+		//			Timeout:    timeout,
+		//		})
+		//	}
+		//}
 	}
 
 	conf = &SSHClientConfig{

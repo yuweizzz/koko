@@ -9,7 +9,6 @@ import (
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
@@ -48,36 +47,36 @@ func (p *ProxyServer) getSystemUserAuthOrManualSet() error {
 	return nil
 }
 
-// getSystemUserUsernameIfNeed 获取系统用户用户名，或手动设置
-func (p *ProxyServer) getSystemUserUsernameIfNeed() (err error) {
-	if p.SystemUser.Username == "" {
-		logger.Infof("Conn[%s] need manuel input systemuser username", p.UserConn.ID())
-		var username string
-		term := utils.NewTerminal(p.UserConn, "username: ")
-		for {
-			username, err = term.ReadLine()
-			if err != nil {
-				return err
-			}
-			username = strings.TrimSpace(username)
-			if username != "" {
-				break
-			}
-		}
-		p.SystemUser.Username = username
-		logger.Infof("Conn[%s] get username from user input: %s", p.UserConn.ID(), username)
-	}
-	return
-}
+//// getSystemUserUsernameIfNeed 获取系统用户用户名，或手动设置
+//func (p *ProxyServer) getSystemUserUsernameIfNeed() (err error) {
+//	if p.SystemUser.Username == "" {
+//		logger.Infof("Conn[%s] need manuel input systemuser username", p.UserConn.ID())
+//		var username string
+//		term := utils.NewTerminal(p.UserConn, "username: ")
+//		for {
+//			username, err = term.ReadLine()
+//			if err != nil {
+//				return err
+//			}
+//			username = strings.TrimSpace(username)
+//			if username != "" {
+//				break
+//			}
+//		}
+//		p.SystemUser.Username = username
+//		logger.Infof("Conn[%s] get username from user input: %s", p.UserConn.ID(), username)
+//	}
+//	return
+//}
 
-func (p *ProxyServer) getSystemUserBasicInfo() {
-	logger.Infof("Conn[%s] start to get systemUser auth info from core server", p.UserConn.ID())
-	var info model.SystemUserAuthInfo
-	//info = service.GetUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID, p.User.ID, p.User.Username)
-	p.SystemUser.Username = info.Username
-	p.SystemUser.Password = info.Password
-	p.SystemUser.PrivateKey = info.PrivateKey
-}
+//func (p *ProxyServer) getSystemUserBasicInfo() {
+//	logger.Infof("Conn[%s] start to get systemUser auth info from core server", p.UserConn.ID())
+//	var info model.SystemUserAuthInfo
+//	//info = service.GetUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID, p.User.ID, p.User.Username)
+//	p.SystemUser.Username = info.Username
+//	p.SystemUser.Password = info.Password
+//	p.SystemUser.PrivateKey = info.PrivateKey
+//}
 
 // checkProtocolMatch 检查协议是否匹配
 func (p *ProxyServer) checkProtocolMatch() bool {
@@ -94,17 +93,17 @@ func (p *ProxyServer) checkProtocolIsGraph() bool {
 	}
 }
 
-// validatePermission 检查是否有权限连接
-func (p *ProxyServer) validatePermission() bool {
-	expireUTCDate, ok := service.ValidateUserAssetPermission(
-		p.User.ID, p.Asset.ID, p.SystemUser.ID, "connect",
-	)
-	p.permissionExpireTime = expireUTCDate
-	logger.Infof("User(%s)-asset(%s)-systemUser(%s) permission expire at %d",
-		p.User.Name, p.Asset.Hostname, p.SystemUser.Name,
-		expireUTCDate)
-	return ok
-}
+//// validatePermission 检查是否有权限连接
+//func (p *ProxyServer) validatePermission() bool {
+//	expireUTCDate, ok := service.ValidateUserAssetPermission(
+//		p.User.ID, p.Asset.ID, p.SystemUser.ID, "connect",
+//	)
+//	p.permissionExpireTime = expireUTCDate
+//	logger.Infof("User(%s)-asset(%s)-systemUser(%s) permission expire at %d",
+//		p.User.Name, p.Asset.Hostname, p.SystemUser.Name,
+//		expireUTCDate)
+//	return ok
+//}
 
 // getSSHConn 获取ssh连接
 func (p *ProxyServer) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
@@ -253,28 +252,28 @@ func (p *ProxyServer) sendConnectingMsg(done chan struct{}, delayDuration time.D
 
 // preCheckRequisite 检查是否满足条件
 func (p *ProxyServer) preCheckRequisite() (ok bool) {
-	if !p.checkProtocolMatch() {
-		msg := utils.WrapperWarn(i18n.T("System user <%s> and asset <%s> protocol are inconsistent."))
-		msg = fmt.Sprintf(msg, p.SystemUser.Username, p.Asset.Hostname)
-		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Errorf("Conn[%s] checking protocol matched failed: %s", p.UserConn.ID(), msg)
-		return
-	}
+	//if !p.checkProtocolMatch() {
+	//	msg := utils.WrapperWarn(i18n.T("System user <%s> and asset <%s> protocol are inconsistent."))
+	//	msg = fmt.Sprintf(msg, p.SystemUser.Username, p.Asset.Hostname)
+	//	utils.IgnoreErrWriteString(p.UserConn, msg)
+	//	logger.Errorf("Conn[%s] checking protocol matched failed: %s", p.UserConn.ID(), msg)
+	//	return
+	//}
 	logger.Infof("Conn[%s] System user and asset protocol matched", p.UserConn.ID())
-	if p.checkProtocolIsGraph() {
-		msg := i18n.T("Terminal only support protocol ssh/telnet, please use web terminal to access")
-		msg = utils.WrapperWarn(msg)
-		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Errorf("Conn[%s] checking requisite failed: %s", p.UserConn.ID(), msg)
-		return
-	}
+	//if p.checkProtocolIsGraph() {
+	//	msg := i18n.T("Terminal only support protocol ssh/telnet, please use web terminal to access")
+	//	msg = utils.WrapperWarn(msg)
+	//	utils.IgnoreErrWriteString(p.UserConn, msg)
+	//	logger.Errorf("Conn[%s] checking requisite failed: %s", p.UserConn.ID(), msg)
+	//	return
+	//}
 	logger.Infof("Conn[%s] System user protocol %s supported", p.UserConn.ID(), p.SystemUser.Protocol)
-	if !p.validatePermission() {
-		msg := fmt.Sprintf("You don't have permission login %s@%s", p.SystemUser.Username, p.Asset.Hostname)
-		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Errorf("Conn[%s] checking permission failed.", p.UserConn.ID())
-		return
-	}
+	//if !p.validatePermission() {
+	//	msg := fmt.Sprintf("You don't have permission login %s@%s", p.SystemUser.Username, p.Asset.Hostname)
+	//	utils.IgnoreErrWriteString(p.UserConn, msg)
+	//	logger.Errorf("Conn[%s] checking permission failed.", p.UserConn.ID())
+	//	return
+	//}
 	logger.Infof("Conn[%s] has permission to access hostname %s", p.UserConn.ID(), p.Asset.Hostname)
 	if err := p.checkRequiredSystemUserInfo(); err != nil {
 		msg := fmt.Sprintf("You get asset %s systemuser info err: %s", p.Asset.Hostname, err)
@@ -286,13 +285,13 @@ func (p *ProxyServer) preCheckRequisite() (ok bool) {
 }
 
 func (p *ProxyServer) checkRequiredSystemUserInfo() error {
-	p.getSystemUserBasicInfo()
+	//p.getSystemUserBasicInfo()
 	logger.Infof("Conn[%s] get systemUser's username %s success", p.UserConn.ID(), p.SystemUser.Username)
-	if err := p.getSystemUserUsernameIfNeed(); err != nil {
-		logger.Errorf("Conn[%s] get asset %s systemUser's username err: %s",
-			p.UserConn.ID(), p.Asset.Hostname, err)
-		return err
-	}
+	//if err := p.getSystemUserUsernameIfNeed(); err != nil {
+	//	logger.Errorf("Conn[%s] get asset %s systemUser's username err: %s",
+	//		p.UserConn.ID(), p.Asset.Hostname, err)
+	//	return err
+	//}
 	if p.checkRequireReuseClient() {
 		if cacheSSHConnection, ok := p.getCacheSSHConn(); ok {
 			p.cacheSSHConnection = cacheSSHConnection
@@ -452,9 +451,9 @@ func (p *ProxyServer) Proxy() {
 //	}
 //}
 
-func (p *ProxyServer) CheckPermissionExpired(now time.Time) bool {
-	return p.permissionExpireTime < now.Unix()
-}
+//func (p *ProxyServer) CheckPermissionExpired(now time.Time) bool {
+//	return p.permissionExpireTime < now.Unix()
+//}
 
 func ConvertErrorToReadableMsg(e error) string {
 	if e == nil {

@@ -12,7 +12,6 @@ import (
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
@@ -83,11 +82,11 @@ func (p *DBProxyServer) checkProtocolClientInstalled() bool {
 }
 
 // validatePermission 检查是否有权限连接
-func (p *DBProxyServer) validatePermission() bool {
-	expireUTCDate, ok := service.ValidateUserApplicationPermission(p.User.ID, p.Database.ID, p.SystemUser.ID)
-	p.permissionExpireTime = expireUTCDate
-	return ok
-}
+//func (p *DBProxyServer) validatePermission() bool {
+//	expireUTCDate, ok := service.ValidateUserApplicationPermission(p.User.ID, p.Database.ID, p.SystemUser.ID)
+//	p.permissionExpireTime = expireUTCDate
+//	return ok
+//}
 
 // getSSHConn 获取ssh连接
 func (p *DBProxyServer) getMysqlConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.MySQLConn, err error) {
@@ -159,11 +158,11 @@ func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 		return
 	}
 	logger.Infof("Conn[%s] System user protocol %s supported", p.UserConn.ID(), p.SystemUser.Protocol)
-	if !p.validatePermission() {
-		msg := fmt.Sprintf("You don't have permission login %s", p.Database.Name)
-		utils.IgnoreErrWriteString(p.UserConn, msg)
-		return
-	}
+	//if !p.validatePermission() {
+	//	msg := fmt.Sprintf("You don't have permission login %s", p.Database.Name)
+	//	utils.IgnoreErrWriteString(p.UserConn, msg)
+	//	return
+	//}
 	logger.Infof("Conn[%s] has permission to access database %s", p.UserConn.ID(), p.Database.Name)
 	if err := p.checkRequiredAuth(); err != nil {
 		msg := fmt.Sprintf("You get database %s auth info err: %s", p.Database.Name, err)
@@ -175,9 +174,9 @@ func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 }
 
 func (p *DBProxyServer) checkRequiredAuth() error {
-	info := service.GetUserApplicationAuthInfo(p.SystemUser.ID, p.Database.ID, p.User.ID, p.User.Username)
-	p.SystemUser.Username = info.Username
-	p.SystemUser.Password = info.Password
+	//info := service.GetUserApplicationAuthInfo(p.SystemUser.ID, p.Database.ID, p.User.ID, p.User.Username)
+	//p.SystemUser.Username = info.Username
+	//p.SystemUser.Password = info.Password
 	logger.Infof("Conn[%s] get database %s auth info from core server success",
 		p.UserConn.ID(), p.Database.Name)
 	if err := p.getUsernameIfNeed(); err != nil {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 
 	gossh "golang.org/x/crypto/ssh"
@@ -184,6 +185,10 @@ type SSHClient struct {
 	*gossh.Client
 	Cfg         *SSHClientOptions
 	ProxyClient *SSHClient
+
+	sync.Mutex
+
+	traceMap map[*gossh.Session]time.Time
 }
 
 func (s *SSHClient) String() string {
@@ -196,6 +201,35 @@ func (s *SSHClient) Close() error {
 		_ = s.ProxyClient.Close()
 	}
 	return s.Client.Close()
+}
+
+func (s *SSHClient) RefCount() int {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+	return len(s.traceMap)
+}
+
+func (s *SSHClient) AcquireSession() (*gossh.Session, error) {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
+	sess, err := s.Client.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	s.traceMap[sess] = time.Now()
+	go func() {
+		// 释放 session
+		_ = sess.Wait()
+		s.ReleaseSession(sess)
+	}()
+	return sess, nil
+}
+
+func (s *SSHClient) ReleaseSession(sess *gossh.Session) {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+	delete(s.traceMap, sess)
 }
 
 var (
