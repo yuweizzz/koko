@@ -44,7 +44,7 @@ type SSHHandler interface {
 	GetSSHSigner() ssh.Signer
 	KeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) AuthStatus
 	PasswordAuth(ctx ssh.Context, password string) AuthStatus
-	PublicKeyHandler(ctx ssh.Context, key ssh.PublicKey) AuthStatus
+	PublicKeyAuth(ctx ssh.Context, key ssh.PublicKey) AuthStatus
 	NextAuthMethodsHandler(ctx ssh.Context) []string
 	SessionHandler(ssh.Session)
 	SFTPHandler(ssh.Session)
@@ -73,7 +73,7 @@ func NewSSHServer(handler SSHHandler) *Server {
 			return ssh.AuthResult(handler.PasswordAuth(ctx, password))
 		},
 		PublicKeyHandler: func(ctx ssh.Context, key ssh.PublicKey) ssh.AuthResult {
-			return ssh.AuthResult(handler.PublicKeyHandler(ctx, key))
+			return ssh.AuthResult(handler.PublicKeyAuth(ctx, key))
 		},
 		NextAuthMethodsHandler: func(ctx ssh.Context) []string {
 			return handler.NextAuthMethodsHandler(ctx)

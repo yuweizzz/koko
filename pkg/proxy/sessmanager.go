@@ -1,33 +1,32 @@
 package proxy
 
 import (
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"sync"
 )
 
 //var sessionMap = make(map[string]Session)
 //var lock = new(sync.RWMutex)
 
-var sessMap = newSessionManager()
+var sessManager = newSessionManager()
 
 //type Session interface {
 //	SessionID() string
 //	Terminate()
 //}
 
-func HandleSessionTask(task model.TerminalTask) {
-	switch task.Name {
-	case "kill_session":
-		if ok := KillSession(task.Args); ok {
-			//service.FinishTask(task.ID)
-		}
-	default:
-
-	}
-}
+//func HandleSessionTask(task model.TerminalTask) {
+//	switch task.Name {
+//	case "kill_session":
+//		if ok := KillSession(task.Args); ok {
+//			//service.FinishTask(task.ID)
+//		}
+//	default:
+//
+//	}
+//}
 
 func KillSession(sessionID string) bool {
-	if sw, ok := sessMap.Get(sessionID); ok {
+	if sw, ok := sessManager.Get(sessionID); ok {
 		sw.Terminate()
 		return true
 	}
@@ -42,7 +41,7 @@ func GetAliveSessions() []string {
 	//	sids = append(sids, sid)
 	//}
 	//
-	return sessMap.Range()
+	return sessManager.Range()
 }
 
 //func GetAliveSessionCount() int {
@@ -80,13 +79,24 @@ func GetAliveSessions() []string {
 //	return s, ok
 //}
 
+
+
+func AddCommonSwitch(s *commonSwitch) {
+	//lock.Lock()
+	//defer lock.Unlock()
+	//delete(sessionMap, s.ID)
+	//finishSession(s.MapData())
+	//logger.Infof("Session %s has finished", s.ID)
+	sessManager.Add(s.ID, s)
+}
+
 func RemoveCommonSwitch(s *commonSwitch) {
 	//lock.Lock()
 	//defer lock.Unlock()
 	//delete(sessionMap, s.ID)
 	//finishSession(s.MapData())
 	//logger.Infof("Session %s has finished", s.ID)
-	sessMap.Delete(s.ID)
+	sessManager.Delete(s.ID)
 }
 
 type sessionManager struct {

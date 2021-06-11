@@ -1,51 +1,52 @@
 package config
 
 import (
-	"encoding/json"
-	"github.com/spf13/viper"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
 var CipherKey = "JumpServer Cipher Key for KoKo !"
 
 type Config struct {
-	Name                string `yaml:"NAME"`
-	CoreHost            string `yaml:"CORE_HOST"`
-	BootstrapToken      string `yaml:"BOOTSTRAP_TOKEN"`
-	BindHost            string `yaml:"BIND_HOST"`
-	SSHPort             string `yaml:"SSHD_PORT"`
-	HTTPPort            string `yaml:"HTTPD_PORT"`
-	SSHTimeout          int    `yaml:"SSH_TIMEOUT"`
-	AccessKey           string `yaml:"ACCESS_KEY"`
-	LogLevel            string `yaml:"LOG_LEVEL"`
-	RootPath            string `yaml:"ROOT_PATH"`
-	Comment             string `yaml:"COMMENT"`
-	LanguageCode        string `yaml:"LANGUAGE_CODE"`
-	UploadFailedReplay  bool   `yaml:"UPLOAD_FAILED_REPLAY_ON_START"`
-	AssetLoadPolicy     string `yaml:"ASSET_LOAD_POLICY"` // all
-	ZipMaxSize          string `yaml:"ZIP_MAX_SIZE"`
-	ZipTmpPath          string `yaml:"ZIP_TMP_PATH"`
-	ClientAliveInterval int    `yaml:"CLIENT_ALIVE_INTERVAL"`
-	RetryAliveCountMax  int    `yaml:"RETRY_ALIVE_COUNT_MAX"`
-	ShowHiddenFile      bool   `yaml:"SFTP_SHOW_HIDDEN_FILE"`
-	ReuseConnection     bool   `yaml:"REUSE_CONNECTION"`
+	Name                string `mapstructure:"NAME"`
+	CoreHost            string `mapstructure:"CORE_HOST"`
+	BootstrapToken      string `mapstructure:"BOOTSTRAP_TOKEN"`
+	BindHost            string `mapstructure:"BIND_HOST"`
+	SSHPort             string `mapstructure:"SSHD_PORT"`
+	HTTPPort            string `mapstructure:"HTTPD_PORT"`
+	SSHTimeout          int    `mapstructure:"SSH_TIMEOUT"`
 
-	ShareRoomType string   `yaml:"SHARE_ROOM_TYPE"`
-	RedisHost     string   `yaml:"REDIS_HOST"`
-	RedisPort     string   `yaml:"REDIS_PORT"`
-	RedisPassword string   `yaml:"REDIS_PASSWORD"`
-	RedisDBIndex  int      `yaml:"REDIS_DB_ROOM"`
-	RedisClusters []string `yaml:"REDIS_CLUSTERS"`
+	LogLevel            string `mapstructure:"LOG_LEVEL"`
+	RootPath            string `mapstructure:"ROOT_PATH"`
+	Comment             string `mapstructure:"COMMENT"`
+	LanguageCode        string `mapstructure:"LANGUAGE_CODE"`
+	UploadFailedReplay  bool   `mapstructure:"UPLOAD_FAILED_REPLAY_ON_START"`
+	AssetLoadPolicy     string `mapstructure:"ASSET_LOAD_POLICY"` // all
+	ZipMaxSize          string `mapstructure:"ZIP_MAX_SIZE"`
+	ZipTmpPath          string `mapstructure:"ZIP_TMP_PATH"`
+	ClientAliveInterval int    `mapstructure:"CLIENT_ALIVE_INTERVAL"`
+	RetryAliveCountMax  int    `mapstructure:"RETRY_ALIVE_COUNT_MAX"`
+	ShowHiddenFile      bool   `mapstructure:"SFTP_SHOW_HIDDEN_FILE"`
+	ReuseConnection     bool   `mapstructure:"REUSE_CONNECTION"`
 
-	EnableLocalPortForward bool `yaml:"ENABLE_LOCAL_PORT_FORWARD"`
+	ShareRoomType string   `mapstructure:"SHARE_ROOM_TYPE"`
+	RedisHost     string   `mapstructure:"REDIS_HOST"`
+	RedisPort     string   `mapstructure:"REDIS_PORT"`
+	RedisPassword string   `mapstructure:"REDIS_PASSWORD"`
+	RedisDBIndex  int      `mapstructure:"REDIS_DB_ROOM"`
+	RedisClusters []string `mapstructure:"REDIS_CLUSTERS"`
 
+	EnableLocalPortForward bool `mapstructure:"ENABLE_LOCAL_PORT_FORWARD"`
+
+	DataFolderPath    string
 	LogDirPath        string
+	KeyFolderPath     string
 	AccessKeyFilePath string
+	ReplayFolderPath  string
 }
 
 func (c *Config) EnsureConfigValid() {
@@ -54,30 +55,30 @@ func (c *Config) EnsureConfigValid() {
 	}
 }
 
-func (c *Config) LoadFromYAML(body []byte) error {
-	err := yaml.Unmarshal(body, c)
-	if err != nil {
-		log.Printf("Load yaml error: %v", err)
-	}
-	return err
-}
-
-func (c *Config) LoadFromYAMLPath(filepath string) error {
-	body, err := ioutil.ReadFile(filepath)
-	if err != nil {
-		log.Printf("Not found file: %s", filepath)
-		return err
-	}
-	return c.LoadFromYAML(body)
-}
-
-func (c *Config) LoadFromJSON(body []byte) error {
-	err := json.Unmarshal(body, c)
-	if err != nil {
-		log.Printf("Config load yaml error")
-	}
-	return nil
-}
+//func (c *Config) LoadFromYAML(body []byte) error {
+//	err := yaml.Unmarshal(body, c)
+//	if err != nil {
+//		log.Printf("Load yaml error: %v", err)
+//	}
+//	return err
+//}
+//
+//func (c *Config) LoadFromYAMLPath(filepath string) error {
+//	body, err := ioutil.ReadFile(filepath)
+//	if err != nil {
+//		log.Printf("Not found file: %s", filepath)
+//		return err
+//	}
+//	return c.LoadFromYAML(body)
+//}
+//
+//func (c *Config) LoadFromJSON(body []byte) error {
+//	err := json.Unmarshal(body, c)
+//	if err != nil {
+//		log.Printf("Config load yaml error")
+//	}
+//	return nil
+//}
 
 //func (c *Config) LoadFromEnv() error {
 //	envMap := make(map[string]string)
@@ -178,25 +179,28 @@ func getDefaultConfig() Config {
 		}
 	}
 	return Config{
-		Name:               defaultName,
-		CoreHost:           "http://localhost:8080",
-		BootstrapToken:     "",
-		BindHost:           "0.0.0.0",
-		SSHPort:            "2222",
-		SSHTimeout:         15,
-		HTTPPort:           "5000",
-		AccessKey:          "",
-		AccessKeyFilePath:  accessKeyFilePath,
-		LogLevel:           "INFO",
-		RootPath:           rootPath,
-		LogDirPath:         LogDirPath,
-		Comment:            "KOKO",
-		UploadFailedReplay: true,
-		ShowHiddenFile:     false,
-		ReuseConnection:    true,
-		AssetLoadPolicy:    "",
-		ZipMaxSize:         "1024M",
-		ZipTmpPath:         "/tmp",
+		Name:              defaultName,
+		CoreHost:          "http://localhost:8080",
+		BootstrapToken:    "",
+		BindHost:          "0.0.0.0",
+		SSHPort:           "2222",
+		SSHTimeout:        15,
+		HTTPPort:          "5000",
+		AccessKeyFilePath: accessKeyFilePath,
+		LogLevel:          "INFO",
+		RootPath:          rootPath,
+		DataFolderPath:    dataFolderPath,
+		LogDirPath:        LogDirPath,
+		KeyFolderPath:     keyFolderPath,
+		ReplayFolderPath:  replayFolderPath,
+
+		Comment:             "KOKO",
+		UploadFailedReplay:  true,
+		ShowHiddenFile:      false,
+		ReuseConnection:     true,
+		AssetLoadPolicy:     "",
+		ZipMaxSize:          "1024M",
+		ZipTmpPath:          "/tmp",
 		ClientAliveInterval: 30,
 		RetryAliveCountMax:  3,
 		ShareRoomType:       "local",

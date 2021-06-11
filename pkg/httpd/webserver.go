@@ -32,9 +32,10 @@ var upGrader = websocket.Upgrader{
 	},
 }
 
-func NewServer() *Server {
+func NewServer(jmsService *service.JMService) *Server {
 	return &Server{
 		broadCaster: NewBroadcaster(),
+		JmsService:  jmsService,
 	}
 }
 
@@ -252,7 +253,7 @@ func (s *Server) runTTY(ctx *gin.Context, currentUser *model.User,
 		targetType:   targetType,
 		targetId:     targetId,
 		systemUserId: SystemUserID,
-		jmsService: s.JmsService,
+		jmsService:   s.JmsService,
 	}
 	s.broadCaster.EnterUserWebsocket(&userConn)
 	defer s.broadCaster.LeaveUserWebsocket(&userConn)

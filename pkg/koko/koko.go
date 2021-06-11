@@ -1,7 +1,6 @@
 package koko
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -10,7 +9,6 @@ import (
 	"time"
 
 	"github.com/jumpserver/koko/pkg/config"
-	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/httpd"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -25,42 +23,39 @@ var Version = "unknown"
 type Koko struct {
 	webServer  *httpd.Server
 	sshServer  *sshd.Server
-	jmsService *service.JMService
-	roomManger exchange.RoomManager
 }
 
 const (
-	timeFormat = "2006-01-02 15:04:05"
-	startMsg   = `%s
+	timeFormat      = "2006-01-02 15:04:05"
+	startWelcomeMsg = `%s
 KoKo Version %s, more see https://www.jumpserver.org
 Quit the server with CONTROL-C.
 `
 )
 
-func (a *Koko) Start() {
-	fmt.Printf(startMsg, time.Now().Format(timeFormat), Version)
-	go a.webServer.Start()
-	go a.sshServer.Start()
+func (k *Koko) Start() {
+	fmt.Printf(startWelcomeMsg, time.Now().Format(timeFormat), Version)
+	go k.webServer.Start()
+	go k.sshServer.Start()
 }
 
-func (a *Koko) Stop() {
-	a.sshServer.Stop()
-	a.webServer.Stop()
+func (k *Koko) Stop() {
+	k.sshServer.Stop()
+	k.webServer.Stop()
 	logger.Info("Quit The KoKo")
 }
 
 func RunForever(confPath string) {
-	ctx, cancelFunc := context.WithCancel(context.Background())
 	config.Setup(confPath)
 	i18n.Initial()
 	logger.Initial()
-	bootstrap(ctx)
 	gracefulStop := make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	jmsService := MustJMService()
 	app := NewApplication(jmsService)
-
-	webSrv := httpd.NewServer()
+	bootstrap(jmsService)
+	webSrv := httpd.NewServer(jmsService)
+	registerWebHandlers(jmsService, webSrv)
 	sshSrv := sshd.NewSSHServer(app)
 	srv := &Koko{
 		webServer: webSrv,
@@ -68,15 +63,14 @@ func RunForever(confPath string) {
 	}
 	srv.Start()
 	<-gracefulStop
-	cancelFunc()
 	srv.Stop()
 }
 
-func bootstrap(ctx context.Context) {
-
-	//service.Initial(ctx)
-	//exchange.Initial(ctx)
-	Initial()
+func bootstrap(jmsService *service.JMService) {
+	if config.GetConf().UploadFailedReplay {
+		go uploadRemainReplay(jmsService)
+	}
+	go keepHeartbeat(jmsService)
 }
 
 func NewApplication(jmsService *service.JMService) *Application {
@@ -86,6 +80,7 @@ func NewApplication(jmsService *service.JMService) *Application {
 	}
 	app := Application{
 		terminalConf: &terminalConf,
+		jmsService: jmsService,
 	}
 
 	return &app

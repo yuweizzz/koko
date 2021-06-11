@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	gossh "golang.org/x/crypto/ssh"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pkg/sftp"
+	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
@@ -140,7 +140,7 @@ func (nd *NodeDir) loadNodeAsset(uSftp *UserSftpConn) {
 					logger.Errorf("convert node err: %s", err)
 					continue
 				}
-				nodeDir := NewNodeDir(node)
+				nodeDir := NewNodeDir(nd.jmsService, node)
 				folderName := nodeDir.folderName
 				for {
 					_, ok := dirs[folderName]
@@ -163,7 +163,7 @@ func (nd *NodeDir) loadNodeAsset(uSftp *UserSftpConn) {
 				if !asset.IsSupportProtocol("ssh") {
 					continue
 				}
-				assetDir := NewAssetDir(uSftp.User, asset, uSftp.Addr, uSftp.logChan)
+				assetDir := NewAssetDir(nd.jmsService, uSftp.User, asset, uSftp.Addr, uSftp.logChan)
 				folderName := assetDir.folderName
 				for {
 					_, ok := dirs[folderName]
@@ -195,7 +195,7 @@ func (nd *NodeDir) close() {
 	}
 }
 
-func NewNodeDir(node model.Node) NodeDir {
+func NewNodeDir(jmsService *service.JMService, node model.Node) NodeDir {
 	folderName := node.Value
 	if strings.Contains(node.Value, "/") {
 		folderName = strings.ReplaceAll(node.Value, "/", "_")
@@ -206,10 +206,11 @@ func NewNodeDir(node model.Node) NodeDir {
 		subDirs:    map[string]os.FileInfo{},
 		modeTime:   time.Now().UTC(),
 		once:       new(sync.Once),
+		jmsService: jmsService,
 	}
 }
 
-func NewAssetDir(user *model.User, asset model.Asset, addr string, logChan chan<- *model.FTPLog) AssetDir {
+func NewAssetDir(jmsService *service.JMService, user *model.User, asset model.Asset, addr string, logChan chan<- *model.FTPLog) AssetDir {
 	folderName := asset.Hostname
 	if strings.Contains(folderName, "/") {
 		folderName = strings.ReplaceAll(folderName, "/", "_")
@@ -227,6 +228,7 @@ func NewAssetDir(user *model.User, asset model.Asset, addr string, logChan chan<
 		ShowHidden:  conf.ShowHiddenFile,
 		reuse:       conf.ReuseConnection,
 		sftpClients: map[string]*SftpConn{},
+		jmsService:  jmsService,
 	}
 }
 
