@@ -245,21 +245,21 @@ func (p *DBProxyServer) Proxy() {
 	//defer RemoveCommonSwitch(sw)
 	var localTunnelAddr *net.TCPAddr
 	if p.Database.Domain != "" {
-		dGateway, err := p.createDomainGateway(p.Database.Domain)
-		if err != nil {
-			msg := i18n.T("Create DB domain gateway failed %s")
-			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
-			utils.IgnoreErrWriteString(p.UserConn, msg)
-			return
-		}
-		localTunnelAddr, err = dGateway.Start()
-		if err != nil {
-			msg := i18n.T("Start DB domain gateway failed %s")
-			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
-			utils.IgnoreErrWriteString(p.UserConn, msg)
-			return
-		}
-		defer dGateway.Stop()
+		//dGateway, err := p.createDomainGateway(p.Database.Domain)
+		//if err != nil {
+		//	msg := i18n.T("Create DB domain gateway failed %s")
+		//	msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
+		//	utils.IgnoreErrWriteString(p.UserConn, msg)
+		//	return
+		//}
+		//localTunnelAddr, err = dGateway.Start()
+		//if err != nil {
+		//	msg := i18n.T("Start DB domain gateway failed %s")
+		//	msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
+		//	utils.IgnoreErrWriteString(p.UserConn, msg)
+		//	return
+		//}
+		//defer dGateway.Stop()
 	}
 	srvConn, err := p.getServerConn(localTunnelAddr)
 	// 连接后端服务器失败

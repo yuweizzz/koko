@@ -37,7 +37,6 @@ require (
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/twindagger/httpsig.v1 v1.2.0
-	gopkg.in/yaml.v2 v2.2.8
 )
 
 replace (

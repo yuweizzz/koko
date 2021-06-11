@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -17,28 +16,11 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func NewCommonSwitch(p proxyEngine) *commonSwitch {
-	ctx, cancel := context.WithCancel(context.Background())
-	MaxIdleTime := time.Duration(30)
-	c := commonSwitch{
-		ID: common.UUID(),
-		//DateStart: common.CurrentUTCTime(),
-		//MaxIdleTime:   config.GetConf().MaxIdleTime,
-		MaxIdleTime:   MaxIdleTime, // todo: 最大空闲时间
-		keepAliveTime: time.Second * 60,
-		ctx:           ctx,
-		cancel:        cancel,
-		//p:             p,
-	}
-	return &c
-}
-
 type commonSwitch struct {
 	ID string
 
-	MaxIdleTime time.Duration
-
-	keepAliveTime time.Duration
+	MaxIdleTime   int
+	keepAliveTime int
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -133,7 +115,7 @@ func (s *commonSwitch) Bridge(userConn UserConnection, srvConn srvconn.ServerCon
 	go s.recordCommand(cmdChan)
 
 	winCh := userConn.WinCh()
-	maxIdleTime := s.MaxIdleTime * time.Minute
+	maxIdleTime := time.Duration(s.MaxIdleTime) * time.Minute
 	lastActiveTime := time.Now()
 	tick := time.NewTicker(30 * time.Second)
 	defer tick.Stop()
@@ -203,8 +185,8 @@ func (s *commonSwitch) Bridge(userConn UserConnection, srvConn srvconn.ServerCon
 		logger.Infof("Session[%s] user read end", s.ID)
 		exitSignal <- struct{}{}
 	}()
-
-	keepAliveTick := time.NewTicker(s.keepAliveTime)
+	keepAliveTime := time.Duration(s.keepAliveTime) * time.Second
+	keepAliveTick := time.NewTicker(keepAliveTime)
 	defer keepAliveTick.Stop()
 	for {
 		select {
@@ -273,7 +255,7 @@ func (s *commonSwitch) Bridge(userConn UserConnection, srvConn srvconn.ServerCon
 			}
 
 		case now := <-keepAliveTick.C:
-			if now.After(lastActiveTime.Add(s.keepAliveTime)) {
+			if now.After(lastActiveTime.Add(keepAliveTime)) {
 				if err := srvConn.KeepAlive(); err != nil {
 					logger.Errorf("Session[%s] srvCon keep alive err: %s", s.ID, err)
 				}

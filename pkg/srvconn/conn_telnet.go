@@ -205,3 +205,9 @@ func TelnetCharset(charset string) TelnetOption {
 		opt.Charset = charset
 	}
 }
+
+func TelnetCustomSuccessPattern(successPattern *regexp.Regexp) TelnetOption {
+	return func(opt *TelnetConfig) {
+		opt.CustomSuccessPattern = successPattern
+	}
+}

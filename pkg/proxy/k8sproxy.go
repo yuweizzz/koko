@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -14,7 +13,6 @@ import (
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
@@ -42,12 +40,12 @@ func (p *K8sProxyServer) checkProtocolClientInstalled() bool {
 	return false
 }
 
-// validatePermission 检查是否有权限连接
-func (p *K8sProxyServer) validatePermission() bool {
-	expireUTCDate, ok := service.ValidateUserApplicationPermission(p.User.ID, p.Cluster.ID, p.SystemUser.ID)
-	p.permissionExpireTime = expireUTCDate
-	return ok
-}
+//// validatePermission 检查是否有权限连接
+//func (p *K8sProxyServer) validatePermission() bool {
+//	expireUTCDate, ok := service.ValidateUserApplicationPermission(p.User.ID, p.Cluster.ID, p.SystemUser.ID)
+//	p.permissionExpireTime = expireUTCDate
+//	return ok
+//}
 
 // getSSHConn 获取ssh连接
 func (p *K8sProxyServer) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.K8sCon, err error) {
@@ -120,13 +118,13 @@ func (p *K8sProxyServer) preCheckRequisite() (ok bool) {
 		return
 	}
 	logger.Infof("Conn[%s] System user protocol %s supported", p.UserConn.ID(), p.SystemUser.Protocol)
-	if !p.validatePermission() {
-		msg := utils.WrapperWarn(i18n.T("You don't have permission login %s"))
-		msg = fmt.Sprintf(msg, p.Cluster.Attrs.Cluster)
-		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Errorf("Conn[%s] get k8s %s permission failed", p.UserConn.ID(), p.Cluster.Attrs.Cluster)
-		return
-	}
+	//if !p.validatePermission() {
+	//	msg := utils.WrapperWarn(i18n.T("You don't have permission login %s"))
+	//	msg = fmt.Sprintf(msg, p.Cluster.Attrs.Cluster)
+	//	utils.IgnoreErrWriteString(p.UserConn, msg)
+	//	logger.Errorf("Conn[%s] get k8s %s permission failed", p.UserConn.ID(), p.Cluster.Attrs.Cluster)
+	//	return
+	//}
 	logger.Infof("Conn[%s] has permission to access k8s %s", p.UserConn.ID(), p.Cluster.Attrs.Cluster)
 	if err := p.checkRequiredAuth(); err != nil {
 		msg := utils.WrapperWarn(i18n.T("You get auth token failed"))
@@ -138,14 +136,14 @@ func (p *K8sProxyServer) preCheckRequisite() (ok bool) {
 }
 
 func (p *K8sProxyServer) checkRequiredAuth() error {
-	info := service.GetUserApplicationAuthInfo(p.SystemUser.ID, p.Cluster.ID, p.User.ID, p.User.Username)
-
-	if info.Token == "" {
-		return errors.New("no auth token")
-	}
-	p.SystemUser.Token = info.Token
-	logger.Infof("Conn[%s] get k8s %s auth info from JMS core success",
-		p.UserConn.ID(), p.Cluster.Attrs.Cluster)
+	//info := service.GetUserApplicationAuthInfo(p.SystemUser.ID, p.Cluster.ID, p.User.ID, p.User.Username)
+	//
+	//if info.Token == "" {
+	//	return errors.New("no auth token")
+	//}
+	//p.SystemUser.Token = info.Token
+	//logger.Infof("Conn[%s] get k8s %s auth info from JMS core success",
+	//	p.UserConn.ID(), p.Cluster.Attrs.Cluster)
 	return nil
 }
 
@@ -228,21 +226,21 @@ func (p *K8sProxyServer) Proxy() {
 	//defer RemoveCommonSwitch(sw)
 	var localTunnelAddr *net.TCPAddr
 	if p.Cluster.Domain != "" {
-		dGateway, err := p.createDomainGateway(p.Cluster.Domain)
-		if err != nil {
-			msg := i18n.T("Create k8s domain gateway failed %s")
-			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
-			utils.IgnoreErrWriteString(p.UserConn, msg)
-			return
-		}
-		localTunnelAddr, err = dGateway.Start()
-		if err != nil {
-			msg := i18n.T("Start k8s domain gateway failed %s")
-			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
-			utils.IgnoreErrWriteString(p.UserConn, msg)
-			return
-		}
-		defer dGateway.Stop()
+		//dGateway, err := p.createDomainGateway(p.Cluster.Domain)
+		//if err != nil {
+		//	msg := i18n.T("Create k8s domain gateway failed %s")
+		//	msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
+		//	utils.IgnoreErrWriteString(p.UserConn, msg)
+		//	return
+		//}
+		////localTunnelAddr, err = dGateway.Start()
+		//if err != nil {
+		//	msg := i18n.T("Start k8s domain gateway failed %s")
+		//	msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
+		//	utils.IgnoreErrWriteString(p.UserConn, msg)
+		//	return
+		//}
+		//defer dGateway.Stop()
 	}
 	srvConn, err := p.getServerConn(localTunnelAddr)
 	// 连接后端服务器失败
