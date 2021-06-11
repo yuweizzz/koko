@@ -58,6 +58,7 @@ var (
 	ErrUnMatchProtocol = errors.New("the protocols are not matched")
 	ErrAPIFailed       = errors.New("api failed")
 	ErrPermission      = errors.New("no permission")
+	ErrNoAuthInfo     = errors.New("no auth info")
 )
 
 /*
@@ -427,7 +428,7 @@ func (s *SessionServer) checkRequiredAuth() error {
 			return err
 		}
 		// todo: 获取复用的 SSHClient
-		if s.checkRequireReuseClient() {
+		if s.checkReuseSSHClient() {
 
 		}
 
@@ -439,16 +440,18 @@ func (s *SessionServer) checkRequiredAuth() error {
 			}
 		}
 	default:
-		return errors.New("no auth info")
+		return ErrNoAuthInfo
 	}
 	return nil
 }
+
+
 
 const (
 	linuxPlatform = "linux"
 )
 
-func (s *SessionServer) checkRequireReuseClient() bool {
+func (s *SessionServer) checkReuseSSHClient() bool {
 	if config.GetConf().ReuseConnection {
 		platformMatched := s.connOpts.asset.Platform == linuxPlatform
 		protocolMatched := s.connOpts.systemUser.Protocol == model.ProtocolSSH

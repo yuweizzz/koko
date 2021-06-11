@@ -109,8 +109,14 @@ func SSHClientTimeout(timeout int) SSHClientOption {
 }
 
 func SSHClientPrivateAuth(privateAuth gossh.Signer) SSHClientOption {
-	return func(conf *SSHClientOptions) {
-		conf.PrivateAuth = privateAuth
+	return func(args *SSHClientOptions) {
+		args.PrivateAuth = privateAuth
+	}
+}
+
+func SSHClientProxyClient(proxyArgs ...SSHClientOptions) SSHClientOption {
+	return func(args *SSHClientOptions) {
+		args.proxySSHClientOptions = proxyArgs
 	}
 }
 
@@ -131,7 +137,11 @@ func NewSSHClient(opts ...SSHClientOption) (*SSHClient, error) {
 	return NewSSHClientWithCfg(cfg)
 }
 
-var ErrNoAvailable = errors.New("no available gateway")
+var (
+	ErrNoAvailable = errors.New("no available gateway")
+	ErrGatewayDial = errors.New("gateway dial addr failed")
+	ErrSSHClient   = errors.New("new ssh client failed")
+)
 
 func getAvailableProxyClient(cfgs ...SSHClientOptions) (*SSHClient, error) {
 	for i := range cfgs {
@@ -163,13 +173,13 @@ func NewSSHClientWithCfg(cfg *SSHClientOptions) (*SSHClient, error) {
 		destConn, err := proxyClient.Dial("tcp", destAddr)
 		if err != nil {
 			_ = proxyClient.Close()
-			return nil, err
+			return nil, fmt.Errorf("%w: %s", ErrGatewayDial, err)
 		}
 		proxyConn, chans, reqs, err := gossh.NewClientConn(destConn, destAddr, &gosshCfg)
 		if err != nil {
 			_ = proxyClient.Close()
 			_ = destConn.Close()
-			return nil, err
+			return nil, fmt.Errorf("%w: %s", ErrSSHClient, err)
 		}
 		gosshClient := gossh.NewClient(proxyConn, chans, reqs)
 		return &SSHClient{Cfg: cfg, Client: gosshClient, ProxyClient: proxyClient}, nil
@@ -188,7 +198,7 @@ type SSHClient struct {
 
 	sync.Mutex
 
-	traceMap map[*gossh.Session]time.Time
+	traceSessionMap map[*gossh.Session]time.Time
 }
 
 func (s *SSHClient) String() string {
@@ -206,7 +216,7 @@ func (s *SSHClient) Close() error {
 func (s *SSHClient) RefCount() int {
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
-	return len(s.traceMap)
+	return len(s.traceSessionMap)
 }
 
 func (s *SSHClient) AcquireSession() (*gossh.Session, error) {
@@ -217,7 +227,7 @@ func (s *SSHClient) AcquireSession() (*gossh.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.traceMap[sess] = time.Now()
+	s.traceSessionMap[sess] = time.Now()
 	go func() {
 		// 释放 session
 		_ = sess.Wait()
@@ -229,7 +239,7 @@ func (s *SSHClient) AcquireSession() (*gossh.Session, error) {
 func (s *SSHClient) ReleaseSession(sess *gossh.Session) {
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
-	delete(s.traceMap, sess)
+	delete(s.traceSessionMap, sess)
 }
 
 var (

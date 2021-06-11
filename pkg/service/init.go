@@ -1,6 +1,8 @@
 package service
 
-//var authClient = common.NewClient(30, "")
+import "github.com/jumpserver/koko/pkg/common"
+
+var authClient = common.NewClient(30, "")
 //
 //func Initial(ctx context.Context) {
 //	cf := config.GetConf()

@@ -106,87 +106,87 @@ func (p *ProxyServer) checkProtocolIsGraph() bool {
 //}
 
 // getSSHConn 获取ssh连接
-func (p *ProxyServer) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
-	conf := config.GetConf()
-	newClient, err := srvconn.NewClient(p.User, p.Asset, p.SystemUser,
-		time.Duration(conf.SSHTimeout)*time.Second, conf.ReuseConnection)
-	if err != nil {
-		logger.Errorf("Conn[%s] create ssh client (%s@%s) err: %s",
-			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err)
-		return nil, err
-	}
-	sess, err := newClient.NewSession()
-	if err != nil {
-		logger.Errorf("Conn[%s] ssh client (%s@%s) create session closed err: %s",
-			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err)
-		return nil, err
-	}
-	pty := p.UserConn.Pty()
-	go func() {
-		_ = sess.Wait()
-		logger.Infof("Conn[%s] ssh client(%s@%s) session closed.",
-			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
-		_ = newClient.Close()
-		logger.Infof("Conn[%s] ssh ssh client(%s@%s) recycled and current ref: %d",
-			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, newClient.RefCount())
-	}()
-	srvConn, err = srvconn.NewSSHConnection(sess, srvconn.SSHCharset(p.getAssetCharset()),
-		srvconn.SSHTerm(pty.Term), srvconn.SSHPtyWin(srvconn.Windows{
-			Width:  pty.Window.Width,
-			Height: pty.Window.Height}))
-	if err != nil {
-		_ = sess.Close()
-		logger.Errorf("Conn[%s] ssh client(%s@%s) start shell err: %s",
-			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err)
-		return nil, err
-	}
-	logger.Infof("User %s ssh client(%s@%s) start shell success.",
-		p.User.Name, p.SystemUser.Name, p.Asset.Hostname)
-	return
-}
+//func (p *ProxyServer) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
+//	conf := config.GetConf()
+//	newClient, err := srvconn.NewClient(p.User, p.Asset, p.SystemUser,
+//		time.Duration(conf.SSHTimeout)*time.Second, conf.ReuseConnection)
+//	if err != nil {
+//		logger.Errorf("Conn[%s] create ssh client (%s@%s) err: %s",
+//			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err)
+//		return nil, err
+//	}
+//	sess, err := newClient.NewSession()
+//	if err != nil {
+//		logger.Errorf("Conn[%s] ssh client (%s@%s) create session closed err: %s",
+//			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err)
+//		return nil, err
+//	}
+//	pty := p.UserConn.Pty()
+//	go func() {
+//		_ = sess.Wait()
+//		logger.Infof("Conn[%s] ssh client(%s@%s) session closed.",
+//			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
+//		_ = newClient.Close()
+//		logger.Infof("Conn[%s] ssh ssh client(%s@%s) recycled and current ref: %d",
+//			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, newClient.RefCount())
+//	}()
+//	srvConn, err = srvconn.NewSSHConnection(sess, srvconn.SSHCharset(p.getAssetCharset()),
+//		srvconn.SSHTerm(pty.Term), srvconn.SSHPtyWin(srvconn.Windows{
+//			Width:  pty.Window.Width,
+//			Height: pty.Window.Height}))
+//	if err != nil {
+//		_ = sess.Close()
+//		logger.Errorf("Conn[%s] ssh client(%s@%s) start shell err: %s",
+//			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err)
+//		return nil, err
+//	}
+//	logger.Infof("User %s ssh client(%s@%s) start shell success.",
+//		p.User.Name, p.SystemUser.Name, p.Asset.Hostname)
+//	return
+//}
 
-func (p *ProxyServer) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
-	key := srvconn.MakeReuseSSHClientKey(p.User, p.Asset, p.SystemUser)
-	if cacheSSHClient, ok := srvconn.GetClientFromCache(key); ok {
-		logger.Infof("Conn[%s] get cache ssh client(%s@%s)",
-			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
-		sess, err1 := cacheSSHClient.NewSession()
-		if err1 != nil {
-			logger.Errorf("Conn[%s] cache ssh client(%s@%s) create session err: %s",
-				p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err1)
-			return nil, false
-		}
-		pty := p.UserConn.Pty()
-		srvConn, err2 := srvconn.NewSSHConnection(sess, srvconn.SSHCharset(p.getAssetCharset()),
-			srvconn.SSHTerm(pty.Term), srvconn.SSHPtyWin(srvconn.Windows{
-				Width:  pty.Window.Width,
-				Height: pty.Window.Height}))
-		go func() {
-			_ = sess.Wait()
-			logger.Infof("Conn[%s] reused ssh client(%s@%s) session closed.",
-				p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
-			_ = cacheSSHClient.Close()
-			logger.Infof("Conn[%s] reused ssh client(%s@%s) recycled and current ref: %d",
-				p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, cacheSSHClient.RefCount())
-		}()
-		if err2 != nil {
-			_ = sess.Close()
-			logger.Errorf("Conn[%s] reuse ssh client(%s@%s) start shell err: %s",
-				p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err2)
-			return nil, false
-		}
-		logger.Infof("Conn[%s] reuse ssh client(%s@%s) start shell success",
-			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
-
-		reuseMsg := fmt.Sprintf(i18n.T("Reuse SSH connections (%s@%s) [Number of connections: %d]"),
-			p.SystemUser.Username, p.Asset.Hostname, cacheSSHClient.RefCount())
-		utils.IgnoreErrWriteString(p.UserConn, reuseMsg+"\r\n")
-		return srvConn, true
-	}
-	logger.Debugf("Conn[%s] did not found cache ssh client(%s@%s)",
-		p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
-	return nil, false
-}
+//func (p *ProxyServer) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
+//	key := srvconn.MakeReuseSSHClientKey(p.User, p.Asset, p.SystemUser)
+//	if cacheSSHClient, ok := srvconn.GetClientFromCache(key); ok {
+//		logger.Infof("Conn[%s] get cache ssh client(%s@%s)",
+//			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
+//		sess, err1 := cacheSSHClient.NewSession()
+//		if err1 != nil {
+//			logger.Errorf("Conn[%s] cache ssh client(%s@%s) create session err: %s",
+//				p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err1)
+//			return nil, false
+//		}
+//		pty := p.UserConn.Pty()
+//		srvConn, err2 := srvconn.NewSSHConnection(sess, srvconn.SSHCharset(p.getAssetCharset()),
+//			srvconn.SSHTerm(pty.Term), srvconn.SSHPtyWin(srvconn.Windows{
+//				Width:  pty.Window.Width,
+//				Height: pty.Window.Height}))
+//		go func() {
+//			_ = sess.Wait()
+//			logger.Infof("Conn[%s] reused ssh client(%s@%s) session closed.",
+//				p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
+//			_ = cacheSSHClient.Close()
+//			logger.Infof("Conn[%s] reused ssh client(%s@%s) recycled and current ref: %d",
+//				p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, cacheSSHClient.RefCount())
+//		}()
+//		if err2 != nil {
+//			_ = sess.Close()
+//			logger.Errorf("Conn[%s] reuse ssh client(%s@%s) start shell err: %s",
+//				p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err2)
+//			return nil, false
+//		}
+//		logger.Infof("Conn[%s] reuse ssh client(%s@%s) start shell success",
+//			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
+//
+//		reuseMsg := fmt.Sprintf(i18n.T("Reuse SSH connections (%s@%s) [Number of connections: %d]"),
+//			p.SystemUser.Username, p.Asset.Hostname, cacheSSHClient.RefCount())
+//		utils.IgnoreErrWriteString(p.UserConn, reuseMsg+"\r\n")
+//		return srvConn, true
+//	}
+//	logger.Debugf("Conn[%s] did not found cache ssh client(%s@%s)",
+//		p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
+//	return nil, false
+//}
 
 // getTelnetConn 获取telnet连接
 func (p *ProxyServer) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) {
@@ -224,11 +224,13 @@ func (p *ProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err err
 		close(done)
 	}()
 	go p.sendConnectingMsg(done, time.Duration(config.GetConf().SSHTimeout)*time.Second)
-	if p.SystemUser.Protocol == "telnet" {
-		return p.getTelnetConn()
-	} else {
-		return p.getSSHConn()
-	}
+	//if p.SystemUser.Protocol == "telnet" {
+	//	return p.getTelnetConn()
+	//} else {
+	//	return p.getSSHConn()
+	//}
+	close(done)
+	return nil, nil
 }
 
 // sendConnectingMsg 发送连接信息
@@ -293,11 +295,11 @@ func (p *ProxyServer) checkRequiredSystemUserInfo() error {
 	//	return err
 	//}
 	if p.checkRequireReuseClient() {
-		if cacheSSHConnection, ok := p.getCacheSSHConn(); ok {
-			p.cacheSSHConnection = cacheSSHConnection
-			logger.Infof("Conn[%s] will use cache SSH conn", p.UserConn.ID())
-			return nil
-		}
+		//if cacheSSHConnection, ok := p.getCacheSSHConn(); ok {
+		//	p.cacheSSHConnection = cacheSSHConnection
+		//	logger.Infof("Conn[%s] will use cache SSH conn", p.UserConn.ID())
+		//	return nil
+		//}
 	}
 	if err := p.getSystemUserAuthOrManualSet(); err != nil {
 		logger.Errorf("Conn[%s] Get asset %s systemuser password/PrivateKey err: %s",
