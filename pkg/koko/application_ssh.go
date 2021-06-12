@@ -121,5 +121,4 @@ func (a *Application) SessionHandler(sess ssh.Session) {
 	}
 
 	utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
-	return
 }

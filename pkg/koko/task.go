@@ -66,11 +66,17 @@ func uploadRemainReplay(jmsService *service.JMService) {
 		}
 		Target, _ := filepath.Rel(replayDir, absGzPath)
 		if err2 := replayStorage.Upload(absGzPath, Target); err2 != nil {
-			logger.Error(err2)
+			logger.Errorf("Upload remain replay file %s failed: %s", absGzPath, err2)
+			continue
 		}
-
+		if err := jmsService.FinishReply(sid); err != nil {
+			logger.Errorf("Notify session %s upload failed: %s", sid, err)
+			continue
+		}
+		_ = os.Remove(absGzPath)
+		logger.Infof("Upload remain replay file %s success", absGzPath)
 	}
-	logger.Debug("Upload remain replay done")
+	logger.Info("Upload remain replay done")
 }
 
 // keepHeartbeat 保持心跳

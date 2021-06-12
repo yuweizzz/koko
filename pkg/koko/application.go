@@ -19,7 +19,7 @@ func (a *Application) run() {
 		time.Sleep(time.Minute)
 		conf, err := a.jmsService.GetTerminalConfig()
 		if err != nil {
-			logger.Error(err)
+			logger.Errorf("Update terminal config failed: %s", err)
 			continue
 		}
 		a.UpdateTerminalConfig(conf)
