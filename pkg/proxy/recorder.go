@@ -18,18 +18,6 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-//func NewCommandRecorder(sid string) (recorder *CommandRecorder) {
-//	recorder = &CommandRecorder{sessionID: sid}
-//	recorder.initial()
-//	return recorder
-//}
-//
-//func NewReplyRecord(sid string) (recorder ReplyRecorder) {
-//	recorder = ReplyRecorder{SessionID: sid}
-//	recorder.initial()
-//	return recorder
-//}
-
 type CommandRecorder struct {
 	sessionID string
 	storage   CommandStorage
@@ -39,13 +27,6 @@ type CommandRecorder struct {
 
 	jmsService *service.JMService
 }
-
-//func (c *CommandRecorder) initial() {
-//	c.queue = make(chan *model.Command, 10)
-//	c.storage = NewCommandStorage()
-//	c.closed = make(chan struct{})
-//	go c.record()
-//}
 
 func (c *CommandRecorder) Record(command *model.Command) {
 	c.queue <- command
@@ -157,8 +138,6 @@ func (r *ReplyRecorder) prepare() {
 	r.AbsGzFilePath = filepath.Join(replayDir, gzFileName)
 	r.Target = strings.Join([]string{today, gzFileName}, "/")
 	r.timeStartNano = time.Now().UnixNano()
-	//r.backOffStorage = defaultStorage
-	//r.storage = NewReplayStorage()
 
 	logger.Infof("Session %s storage type is %s", r.SessionID, r.storage.TypeName())
 	if r.isNullStorage() {

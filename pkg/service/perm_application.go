@@ -1,31 +1,26 @@
 package service
 
-import (
-	"fmt"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-)
+//func GetAllUserPermMySQLs(userId string) []map[string]interface{} {
+//	var param model.PaginationParam
+//	res := GetUserPermsMySQL(userId, param)
+//	return res.Data
+//}
+//
+//func GetAllUserPermK8s(userId string) []map[string]interface{} {
+//	var param model.PaginationParam
+//	res := GetUserPermsK8s(userId, param)
+//	return res.Data
+//}
 
-func GetAllUserPermMySQLs(userId string) []map[string]interface{} {
-	var param model.PaginationParam
-	res := GetUserPermsMySQL(userId, param)
-	return res.Data
-}
+//func GetUserPermsMySQL(userId string, param model.PaginationParam) model.PaginationResponse {
+//	reqUrl := fmt.Sprintf(UserPermsApplicationsURL, userId, model.AppTypeMySQL)
+//	return getPaginationResult(reqUrl, param)
+//}
 
-func GetAllUserPermK8s(userId string) []map[string]interface{} {
-	var param model.PaginationParam
-	res := GetUserPermsK8s(userId, param)
-	return res.Data
-}
-
-func GetUserPermsMySQL(userId string, param model.PaginationParam) model.PaginationResponse {
-	reqUrl := fmt.Sprintf(UserPermsApplicationsURL, userId, model.AppTypeMySQL)
-	return getPaginationResult(reqUrl, param)
-}
-
-func GetUserPermsK8s(userId string, param model.PaginationParam) model.PaginationResponse {
-	reqUrl := fmt.Sprintf(UserPermsApplicationsURL, userId, model.AppTypeK8s)
-	return getPaginationResult(reqUrl, param)
-}
+//func GetUserPermsK8s(userId string, param model.PaginationParam) model.PaginationResponse {
+//	reqUrl := fmt.Sprintf(UserPermsApplicationsURL, userId, model.AppTypeK8s)
+//	return getPaginationResult(reqUrl, param)
+//}
 
 //func getApplicationDetail(appId string, res interface{}) {
 //	reqUrl := fmt.Sprintf(ApplicationDetailURL, appId)

@@ -11,51 +11,51 @@ import (
 	"github.com/gliderlabs/ssh"
 	"github.com/xlab/treeprint"
 
-	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func SessionHandler(sess ssh.Session) {
-	user, ok := sess.Context().Value(auth.ContextKeyUser).(*model.User)
-	if !ok || user.ID == "" {
-		logger.Errorf("SSH User %s not found, exit.", sess.User())
-		return
-	}
-	pty, _, ok := sess.Pty()
-	if ok {
-		handler := newInteractiveHandler(sess, user)
-		logger.Infof("Request %s: User %s request pty %s", handler.sess.ID(), sess.User(), pty.Term)
-		go handler.watchWinSizeChange()
-		handler.Dispatch()
-	} else {
-		utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
-		return
-	}
-}
+//func SessionHandler(sess ssh.Session) {
+//	user, ok := sess.Context().Value(auth.ContextKeyUser).(*model.User)
+//	if !ok || user.ID == "" {
+//		logger.Errorf("SSH User %s not found, exit.", sess.User())
+//		return
+//	}
+//	pty, winChan, ok := sess.Pty()
+//	if ok {
+//		handler := NewInteractiveHandler(sess, user)
+//		logger.Infof("Request %s: User %s request pty %s", handler.sess.ID(), sess.User(), pty.Term)
+//		go handler.WatchWinSizeChange(winChan)
+//		handler.Dispatch()
+//	} else {
+//		utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
+//		return
+//	}
+//}
 
-func newInteractiveHandler(sess ssh.Session, user *model.User) *interactiveHandler {
+func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *service.JMService) *InteractiveHandler {
 	wrapperSess := NewWrapperSession(sess)
 	term := utils.NewTerminal(wrapperSess, "Opt> ")
-	handler := &interactiveHandler{
+	handler := &InteractiveHandler{
 		sess: wrapperSess,
 		user: user,
 		term: term,
+
+		jmsService: jmsService,
 	}
 	handler.Initial()
 	return handler
 }
 
-type interactiveHandler struct {
-	sess         *WrapperSession
-	user         *model.User
-	term         *utils.Terminal
-	winWatchChan chan bool
+type InteractiveHandler struct {
+	sess *WrapperSession
+	user *model.User
+	term *utils.Terminal
 
 	selectHandler *UserSelectHandler
 
@@ -64,16 +64,17 @@ type interactiveHandler struct {
 	assetLoadPolicy string
 
 	wg sync.WaitGroup
+
+	jmsService *service.JMService
 }
 
-func (h *interactiveHandler) Initial() {
+func (h *InteractiveHandler) Initial() {
 	conf := config.GetConf()
 	if conf.ClientAliveInterval > 0 {
 		go h.keepSessionAlive(time.Duration(conf.ClientAliveInterval) * time.Second)
 	}
 	h.assetLoadPolicy = strings.ToLower(conf.AssetLoadPolicy)
 	h.displayBanner()
-	h.winWatchChan = make(chan bool, 5)
 	h.selectHandler = &UserSelectHandler{
 		user:     h.user,
 		h:        h,
@@ -81,14 +82,14 @@ func (h *interactiveHandler) Initial() {
 	}
 	switch h.assetLoadPolicy {
 	case "all":
-		allAssets := service.GetAllUserPermsAssets(h.user.ID)
+		allAssets := h.jmsService.GetAllUserPermsAssets(h.user.ID)
 		h.selectHandler.SetAllLocalData(allAssets)
 	}
 	h.firstLoadData()
 
 }
 
-func (h *interactiveHandler) firstLoadData() {
+func (h *InteractiveHandler) firstLoadData() {
 	h.wg.Add(1)
 	go func() {
 		defer h.wg.Done()
@@ -96,40 +97,29 @@ func (h *interactiveHandler) firstLoadData() {
 	}()
 }
 
-func (h *interactiveHandler) displayBanner() {
+func (h *InteractiveHandler) displayBanner() {
 	h.term.SetPrompt("Opt> ")
 	displayBanner(h.sess, h.user.Name)
 }
 
-func (h *interactiveHandler) watchWinSizeChange() {
-	sessChan := h.sess.WinCh()
-	winChan := sessChan
+func (h *InteractiveHandler) WatchWinSizeChange(winChan <-chan ssh.Window) {
 	defer logger.Infof("Request %s: Windows change watch close", h.sess.Uuid)
 	for {
 		select {
 		case <-h.sess.Sess.Context().Done():
 			return
-		case sig, ok := <-h.winWatchChan:
-			if !ok {
-				return
-			}
-			switch sig {
-			case false:
-				winChan = nil
-			case true:
-				winChan = sessChan
-			}
 		case win, ok := <-winChan:
 			if !ok {
 				return
 			}
+			h.sess.SetWin(win)
 			logger.Debugf("Term window size change: %d*%d", win.Height, win.Width)
 			_ = h.term.SetSize(win.Width, win.Height)
 		}
 	}
 }
 
-func (h *interactiveHandler) keepSessionAlive(keepAliveTime time.Duration) {
+func (h *InteractiveHandler) keepSessionAlive(keepAliveTime time.Duration) {
 	t := time.NewTicker(keepAliveTime)
 	defer t.Stop()
 	for {
@@ -148,15 +138,7 @@ func (h *interactiveHandler) keepSessionAlive(keepAliveTime time.Duration) {
 	}
 }
 
-func (h *interactiveHandler) pauseWatchWinSize() {
-	h.winWatchChan <- false
-}
-
-func (h *interactiveHandler) resumeWatchWinSize() {
-	h.winWatchChan <- true
-}
-
-func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (systemUser model.SystemUser, ok bool) {
+func (h *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (systemUser model.SystemUser, ok bool) {
 
 	length := len(systemUsers)
 	switch length {
@@ -229,18 +211,18 @@ func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (s
 	}
 }
 
-func (h *interactiveHandler) refreshAssetsAndNodesData() {
+func (h *InteractiveHandler) refreshAssetsAndNodesData() {
 	h.wg.Add(2)
 	go func() {
 		defer h.wg.Done()
-		allAssets := service.RefreshUserAllPermsAssets(h.user.ID)
+		allAssets := h.jmsService.RefreshUserAllPermsAssets(h.user.ID)
 		if h.assetLoadPolicy == "all" {
 			h.selectHandler.SetAllLocalData(allAssets)
 		}
 	}()
 	go func() {
 		defer h.wg.Done()
-		h.nodes = service.RefreshUserNodes(h.user.ID)
+		h.nodes = h.jmsService.RefreshUserNodes(h.user.ID)
 	}()
 	h.wg.Wait()
 	_, err := io.WriteString(h.term, i18n.T("Refresh done")+"\n\r")
@@ -249,8 +231,8 @@ func (h *interactiveHandler) refreshAssetsAndNodesData() {
 	}
 }
 
-func (h *interactiveHandler) loadUserNodes() {
-	h.nodes = service.GetUserNodes(h.user.ID)
+func (h *InteractiveHandler) loadUserNodes() {
+	h.nodes = h.jmsService.GetUserNodes(h.user.ID)
 }
 
 func ConstructNodeTree(assetNodes []model.Node) treeprint.Tree {

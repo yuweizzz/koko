@@ -5,12 +5,11 @@ import (
 
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
 func (u *UserSelectHandler) retrieveRemoteNodeAsset(reqParam model.PaginationParam) []map[string]interface{} {
-	res := service.GetUserNodeAssets(u.user.ID, u.selectedNode.ID, reqParam)
+	res := u.h.jmsService.GetUserNodeAssets(u.user.ID, u.selectedNode.ID, reqParam)
 	return u.updateRemotePageData(reqParam, res)
 }
 

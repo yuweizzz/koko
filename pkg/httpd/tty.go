@@ -192,45 +192,52 @@ func (h *tty) getAppType() int {
 
 func (h *tty) proxy(wg *sync.WaitGroup) {
 	defer wg.Done()
-	var proxySrv proxyServer
 	switch h.targetType {
 	case TargetTypeDB, TargetTypeK8s, TargetTypeAsset:
 		switch h.getAppType() {
 		case AppTypeDB:
-			proxySrv = &proxy.DBProxyServer{
-				UserConn: h.backendClient,
-				//User:       h.ws.CurrentUser(),
-				//Database:   h.dbApp,
-				//SystemUser: h.systemUser,
+
+			srv, err := proxy.NewServer(h.backendClient, h.jmsService,
+				proxy.ConnectProtocolType(h.systemUser.Protocol),
+				proxy.ConnectSystemUser(h.systemUser),
+				proxy.ConnectDBApp(h.dbApp),
+				proxy.ConnectUser(h.ws.user),
+			)
+			if err != nil {
+				return
 			}
+			srv.Proxy()
+
 		case AppTypeK8s:
-			proxySrv = &proxy.K8sProxyServer{
-				UserConn: h.backendClient,
-				//User:       h.ws.CurrentUser(),
-				//Cluster:    h.k8sApp,
-				//SystemUser: h.systemUser,
+			srv, err := proxy.NewServer(h.backendClient, h.jmsService,
+				proxy.ConnectProtocolType(h.systemUser.Protocol),
+				proxy.ConnectSystemUser(h.systemUser),
+				proxy.ConnectK8sApp(h.k8sApp),
+				proxy.ConnectUser(h.ws.user),
+			)
+			if err != nil {
+				return
 			}
+			srv.Proxy()
+
 		case AppTypeAsset:
-			proxySrv = &proxy.ProxyServer{
-				UserConn: h.backendClient,
-				//User:       h.ws.CurrentUser(),
-				//Asset:      h.assetApp,
-				//SystemUser: h.systemUser,
+			srv, err := proxy.NewServer(h.backendClient, h.jmsService,
+				proxy.ConnectProtocolType(h.systemUser.Protocol),
+				proxy.ConnectSystemUser(h.systemUser),
+				proxy.ConnectAsset(h.assetApp),
+				proxy.ConnectUser(h.ws.user),
+			)
+			if err != nil {
+				return
 			}
+			srv.Proxy()
 		}
 	case TargetTypeRoom:
 		h.JoinRoom(h.backendClient, h.targetId)
 	default:
 		return
 	}
-	if proxySrv != nil {
-		proxySrv.Proxy()
-	}
 	h.sendCloseMessage()
-}
-
-type proxyServer interface {
-	Proxy()
 }
 
 func (h *tty) CheckShareRoomReadPerm(uerId, roomId string) bool {
@@ -239,7 +246,6 @@ func (h *tty) CheckShareRoomReadPerm(uerId, roomId string) bool {
 		return false
 	}
 	if !ret.Ok {
-
 		return false
 	}
 	return true

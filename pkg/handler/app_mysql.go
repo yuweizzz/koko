@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"github.com/jumpserver/koko/pkg/srvconn"
 	"strconv"
 
 	"github.com/jumpserver/koko/pkg/common"
@@ -9,12 +10,11 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
-	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
 func (u *UserSelectHandler) retrieveRemoteMySQL(reqParam model.PaginationParam) []map[string]interface{} {
-	res := service.GetUserPermsMySQL(u.user.ID, reqParam)
+	res := u.h.jmsService.GetUserPermsMySQL(u.user.ID, reqParam)
 	return u.updateRemotePageData(reqParam, res)
 }
 
@@ -125,21 +125,36 @@ func (u *UserSelectHandler) displayMySQLResult(searchHeader string) {
 }
 
 func (u *UserSelectHandler) proxyMySQL(dbApp model.DatabaseApplication) {
-	systemUsers := service.GetUserApplicationSystemUsers(u.user.ID, dbApp.ID)
+
+	systemUsers, err := u.h.jmsService.GetUserApplicationSystemUsers(u.user.ID, dbApp.ID)
+	if err != nil {
+		return
+	}
 	highestSystemUsers := selectHighestPrioritySystemUsers(systemUsers)
 	selectedSystemUser, ok := u.h.chooseSystemUser(highestSystemUsers)
 	if !ok {
 		return
 	}
-	p := proxy.DBProxyServer{
-		UserConn:   u.h.sess,
-		User:       u.h.user,
-		Database:   &dbApp,
-		SystemUser: &selectedSystemUser,
+	//p := proxy.DBProxyServer{
+	//	UserConn:   u.h.sess,
+	//	User:       u.h.user,
+	//	Database:   &dbApp,
+	//	SystemUser: &selectedSystemUser,
+	//}
+	//u.h.pauseWatchWinSize()
+	//p.Proxy()
+	//u.h.resumeWatchWinSize()
+
+	srv, err := proxy.NewServer(u.h.sess, u.h.jmsService,
+		proxy.ConnectProtocolType(srvconn.ProtocolMySQL),
+		proxy.ConnectDBApp(&dbApp),
+		proxy.ConnectSystemUser(&selectedSystemUser),
+		proxy.ConnectUser(u.user),
+	)
+	if err != nil {
+		logger.Error(err)
 	}
-	u.h.pauseWatchWinSize()
-	p.Proxy()
-	u.h.resumeWatchWinSize()
+	srv.Proxy()
 	logger.Infof("Request %s: database %s proxy end", u.h.sess.Uuid, dbApp.Name)
 
 }

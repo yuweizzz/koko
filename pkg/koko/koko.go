@@ -3,12 +3,15 @@ package koko
 import (
 	"errors"
 	"fmt"
+	"github.com/jumpserver/koko/pkg/exchange"
+
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/handler"
 	"github.com/jumpserver/koko/pkg/httpd"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -21,8 +24,8 @@ import (
 var Version = "unknown"
 
 type Koko struct {
-	webServer  *httpd.Server
-	sshServer  *sshd.Server
+	webServer *httpd.Server
+	sshServer *sshd.Server
 }
 
 const (
@@ -47,13 +50,12 @@ func (k *Koko) Stop() {
 
 func RunForever(confPath string) {
 	config.Setup(confPath)
-	i18n.Initial()
-	logger.Initial()
+	bootstrap()
 	gracefulStop := make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	jmsService := MustJMService()
 	app := NewApplication(jmsService)
-	bootstrap(jmsService)
+	runTasks(jmsService)
 	webSrv := httpd.NewServer(jmsService)
 	registerWebHandlers(jmsService, webSrv)
 	sshSrv := sshd.NewSSHServer(app)
@@ -66,7 +68,14 @@ func RunForever(confPath string) {
 	srv.Stop()
 }
 
-func bootstrap(jmsService *service.JMService) {
+func bootstrap() {
+	i18n.Initial()
+	logger.Initial()
+	handler.Initial()
+	exchange.Initial()
+}
+
+func runTasks(jmsService *service.JMService) {
 	if config.GetConf().UploadFailedReplay {
 		go uploadRemainReplay(jmsService)
 	}
@@ -80,9 +89,9 @@ func NewApplication(jmsService *service.JMService) *Application {
 	}
 	app := Application{
 		terminalConf: &terminalConf,
-		jmsService: jmsService,
+		jmsService:   jmsService,
 	}
-
+	go app.run()
 	return &app
 }
 

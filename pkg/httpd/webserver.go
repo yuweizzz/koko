@@ -204,9 +204,10 @@ func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
 	}
 
 	userConn.handler = &webFolder{
-		ws:       &userConn,
-		targetId: targetId,
-		done:     make(chan struct{}),
+		ws:         &userConn,
+		targetId:   targetId,
+		done:       make(chan struct{}),
+		jmsService: s.JmsService,
 	}
 
 	s.broadCaster.EnterUserWebsocket(&userConn)

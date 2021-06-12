@@ -38,6 +38,42 @@ type ConnectionOptions struct {
 	k8sApp *model.K8sApplication
 }
 
+func ConnectUser(user *model.User) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.user = user
+	}
+}
+
+func ConnectProtocolType(protocol string) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.ProtocolType = protocol
+	}
+}
+
+func ConnectSystemUser(systemUser *model.SystemUser) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.systemUser = systemUser
+	}
+}
+
+func ConnectAsset(asset *model.Asset) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.asset = asset
+	}
+}
+
+func ConnectDBApp(dbApp *model.DatabaseApplication) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.dbApp = dbApp
+	}
+}
+
+func ConnectK8sApp(k8sApp *model.K8sApplication) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.k8sApp = k8sApp
+	}
+}
+
 func (opts *ConnectionOptions) TerminalTitle() string {
 	title := ""
 	switch opts.ProtocolType {
@@ -94,7 +130,7 @@ var (
 		5. 获取当前的终端配置，（录像和命令存储配置)
 */
 
-func NewSessionServer(conn UserConnection, jmsService *service.JMService, opts ...ConnectionOption) (*Server, error) {
+func NewServer(conn UserConnection, jmsService *service.JMService, opts ...ConnectionOption) (*Server, error) {
 	connOpts := &ConnectionOptions{}
 	for _, setter := range opts {
 		setter(connOpts)
@@ -330,13 +366,25 @@ func (s *Server) GetFilterParser() ParseEngine {
 }
 
 func (s *Server) GetReplayRecorder() *ReplyRecorder {
-
-	return nil
+	r := ReplyRecorder{
+		SessionID:  s.ID,
+		storage:    NewReplayStorage(s.jmsService, s.terminalConf),
+		jmsService: s.jmsService,
+	}
+	r.initial()
+	return &r
 }
 
 func (s *Server) GetCommandRecorder() *CommandRecorder {
-
-	return nil
+	cmdR := CommandRecorder{
+		sessionID:  s.ID,
+		storage:    NewCommandStorage(s.jmsService, s.terminalConf),
+		queue:      make(chan *model.Command, 10),
+		closed:     make(chan struct{}),
+		jmsService: s.jmsService,
+	}
+	go cmdR.record()
+	return &cmdR
 }
 
 func (s *Server) GenerateCommandItem(input, output string,
@@ -484,7 +532,7 @@ func (s *Server) checkReuseSSHClient() bool {
 }
 
 func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
-	keyId := MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID,
+	keyId := srvconn.MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID,
 		s.connOpts.systemUser.ID, s.systemUserAuthInfo.Username)
 	sshClient, ok := srvconn.GetClientFromCache(keyId)
 	if !ok {
@@ -582,7 +630,7 @@ func (s *Server) getMysqlConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.My
 }
 
 func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
-	key := MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID, s.systemUserAuthInfo.ID,
+	key := srvconn.MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID, s.systemUserAuthInfo.ID,
 		s.systemUserAuthInfo.Username)
 	timeout := config.GlobalConfig.SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 6)
@@ -621,7 +669,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	}
 	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
 	if err != nil {
-		logger.Errorf("Get new SSH client err: %s", err)
+		logger.Errorf("Get new ssh client err: %s", err)
 		return nil, err
 	}
 	sess, err := sshClient.NewSession()
@@ -690,6 +738,7 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 	}
 	return srvconn.NewTelnetConnection(telnetOpts...)
 }
+
 func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection, error) {
 	done := make(chan struct{})
 	defer func() {
@@ -785,11 +834,13 @@ func (s *Server) Proxy() {
 			dGateway, err := s.createAvailableGateWay()
 			if err != nil {
 				logger.Error(err)
+				utils.IgnoreErrWriteString(s.UserConn, err.Error())
 				return
 			}
 			err = dGateway.Start()
 			if err != nil {
 				logger.Error(err)
+				utils.IgnoreErrWriteString(s.UserConn, err.Error())
 				return
 			}
 			defer dGateway.Stop()
@@ -802,12 +853,22 @@ func (s *Server) Proxy() {
 	if err != nil {
 		logger.Error(err)
 		s.sendConnectErrorMsg(err)
+		if err2 := s.ConnectedFailedCallback(err); err2 != nil {
+			logger.Errorf("Conn[%s] update session err: %s", s.UserConn.ID(), err2)
+		}
 		return
 	}
+
 	logger.Infof("Conn[%s] create session %s success", s.UserConn.ID(), s.ID)
+	if err2 := s.ConnectedSuccessCallback(); err2 != nil {
+		logger.Errorf("Conn[%s] update session %s err: %s", s.UserConn.ID(), s.ID, err2)
+	}
 	utils.IgnoreErrWriteWindowTitle(s.UserConn, s.connOpts.TerminalTitle())
 	if err = sw.Bridge(s.UserConn, srvCon); err != nil {
 		logger.Error(err)
+	}
+	if err = s.DisConnectedCallback(); err != nil {
+		logger.Errorf("Conn[%s] update session %s err: %+v", s.UserConn.ID(), s.ID, err)
 	}
 }
 
@@ -837,10 +898,6 @@ func (s *Server) sendConnectErrorMsg(err error) {
 			logger.Error(msg2)
 		}
 	}
-}
-
-func MakeReuseSSHClientKey(userId, assetId, sysUserId, username string) string {
-	return fmt.Sprintf("%s_%s_%s_%s", userId, assetId, sysUserId, username)
 }
 
 func ParseUrlHostAndPort(clusterAddr string) (host string, port int, err error) {

@@ -742,7 +742,7 @@ func (ad *AssetDir) getCacheSftpConn(su *model.SystemUser) (*SftpConn, bool) {
 		sshClient *SSHClient
 		ok        bool
 	)
-	key := MakeReuseSSHClientKey(ad.user, ad.asset, su)
+	key := MakeReuseSSHClientKey(ad.user.ID, ad.asset.ID, su.ID, su.Username)
 	switch su.Username {
 	case "":
 		sshClient, ok = searchSSHClientFromCache(key)
@@ -798,7 +798,7 @@ func (ad *AssetDir) getNewSftpConn(su *model.SystemUser) (conn *SftpConn, err er
 	//	logger.Errorf("SSH client %p start sftp client session err %s", sshClient, err)
 	//	return nil, err
 	//}
-	key := MakeReuseSSHClientKey(ad.user, ad.asset, su)
+	key := MakeReuseSSHClientKey(ad.user.ID, ad.asset.ID, su.ID, su.Username)
 	timeout := config.GlobalConfig.SSHTimeout
 
 	sshAuthOpts := make([]SSHClientOption, 0, 6)

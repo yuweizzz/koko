@@ -266,6 +266,7 @@ func (u *UserSftpConn) initial() {
 	nodeTrees, err := u.jmsService.GetNodeTreeByUserAndNodeKey(u.User.ID, "")
 	if err != nil {
 		// todo log
+		return
 	}
 	if u.Dirs == nil {
 		u.Dirs = map[string]os.FileInfo{}
@@ -323,7 +324,7 @@ func (u *UserSftpConn) initial() {
 			if !asset.IsSupportProtocol("ssh") {
 				continue
 			}
-			assetDir := NewAssetDir(u.jmsService,u.User, asset, u.Addr, u.logChan)
+			assetDir := NewAssetDir(u.jmsService, u.User, asset, u.Addr, u.logChan)
 			folderName := assetDir.folderName
 			for {
 				_, ok := u.Dirs[folderName]
@@ -396,7 +397,7 @@ func (u *UserSftpConn) Search(key string) (res []os.FileInfo, err error) {
 		if !assets[i].IsSupportProtocol("ssh") {
 			continue
 		}
-		assetDir := NewAssetDir(u.jmsService,u.User, assets[i], u.Addr, u.logChan)
+		assetDir := NewAssetDir(u.jmsService, u.User, assets[i], u.Addr, u.logChan)
 		folderName := assetDir.folderName
 		for {
 			_, ok := subDirs[folderName]
@@ -441,7 +442,7 @@ func NewUserSftpConnWithAssets(jmsService *service.JMService, user *model.User, 
 	}
 	for _, asset := range assets {
 		if asset.IsSupportProtocol("ssh") {
-			assetDir := NewAssetDir(jmsService,u.User, asset, u.Addr, u.logChan)
+			assetDir := NewAssetDir(jmsService, u.User, asset, u.Addr, u.logChan)
 			folderName := assetDir.folderName
 			for {
 				_, ok := u.Dirs[folderName]

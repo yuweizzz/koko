@@ -3,6 +3,7 @@ package srvconn
 import (
 	"errors"
 	"fmt"
+	"github.com/jumpserver/koko/pkg/logger"
 	"net"
 	"strconv"
 	"sync"
@@ -168,8 +169,10 @@ func NewSSHClientWithCfg(cfg *SSHClientOptions) (*SSHClient, error) {
 	if cfg.proxySSHClientOptions != nil {
 		proxyClient, err := getAvailableProxyClient(cfg.proxySSHClientOptions...)
 		if err != nil {
+			logger.Errorf("Get gateway client err: %s", err)
 			return nil, err
 		}
+		logger.Infof("Get gateway client(%s) success ", proxyClient)
 		destConn, err := proxyClient.Dial("tcp", destAddr)
 		if err != nil {
 			_ = proxyClient.Close()

@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
@@ -32,5 +31,11 @@ func (s *JMService) GetUserApplicationAuthInfo(systemUserID, appID, userID, user
 		params["user_id"] = userID
 	}
 	_, err = s.authClient.Get(Url, &info, params)
+	return
+}
+
+func (s *JMService) GetUserApplicationSystemUsers(userId, appId string) (res []model.SystemUser, err error) {
+	reqUrl := fmt.Sprintf(UserPermsApplicationSystemUsersURL, userId, appId)
+	_, err = s.authClient.Get(reqUrl, &res)
 	return
 }

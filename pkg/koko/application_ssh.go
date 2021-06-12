@@ -2,14 +2,13 @@ package koko
 
 import (
 	"fmt"
-
-	"io"
-	"net"
-	"time"
+	"github.com/jumpserver/koko/pkg/utils"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/pkg/sftp"
 	gossh "golang.org/x/crypto/ssh"
+	"io"
+	"net"
 
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
@@ -107,5 +106,20 @@ func (a *Application) DirectTCPIPChannelHandler(ctx ssh.Context, newChan gossh.N
 
 func (a *Application) SessionHandler(sess ssh.Session) {
 	fmt.Println("sid: ", sess.Context().Value(ctxID))
-	time.Sleep(100 * time.Second)
+	user, ok := sess.Context().Value(auth.ContextKeyUser).(*model.User)
+	if !ok || user.ID == "" {
+		logger.Errorf("SSH User %s not found, exit.", sess.User())
+		utils.IgnoreErrWriteString(sess, "Not auth user.\n")
+		return
+	}
+	if pty, winChan, ok2 := sess.Pty(); ok2 {
+		interactiveSrv := handler.NewInteractiveHandler(sess, user, a.jmsService)
+		logger.Infof("User %s request pty %s", sess.User(), pty.Term)
+		go interactiveSrv.WatchWinSizeChange(winChan)
+		interactiveSrv.Dispatch()
+		return
+	}
+
+	utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
+	return
 }

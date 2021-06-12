@@ -31,7 +31,7 @@ const (
 
 type UserSelectHandler struct {
 	user *model.User
-	h    *interactiveHandler
+	h    *InteractiveHandler
 
 	loadingPolicy dataSource
 	currentType   selectType
@@ -217,7 +217,7 @@ func (u *UserSelectHandler) Proxy(target map[string]interface{}) {
 	targetId := target["id"].(string)
 	switch u.currentType {
 	case TypeAsset, TypeNodeAsset:
-		asset, err := u.jmsService.GetAssetById(targetId)
+		asset, err := u.h.jmsService.GetAssetById(targetId)
 		if err != nil || asset.ID == "" {
 			logger.Errorf("Select asset %s not found", targetId)
 			return
@@ -230,14 +230,14 @@ func (u *UserSelectHandler) Proxy(target map[string]interface{}) {
 		}
 		u.proxyAsset(asset)
 	case TypeK8s:
-		app, err := u.jmsService.GetK8sApplicationById(targetId)
+		app, err := u.h.jmsService.GetK8sApplicationById(targetId)
 		if err != nil || app.ID == "" {
 			logger.Errorf("Select k8s %s not found", targetId)
 			return
 		}
 		u.proxyK8s(app)
 	case TypeMySQL:
-		app, err := u.jmsService.GetMySQLApplicationById(targetId)
+		app, err := u.h.jmsService.GetMySQLApplicationById(targetId)
 		if err != nil || app.ID == "" {
 			logger.Errorf("Select MySQL %s not found", targetId)
 			return
