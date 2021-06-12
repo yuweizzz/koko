@@ -51,11 +51,11 @@ const (
 
 var _ ParseEngine = (*Parser)(nil)
 
-func newParser(sid, protocolType string) *Parser {
-	parser := Parser{id: sid, protocolType: protocolType}
-	parser.initial()
-	return &parser
-}
+//func newParser(sid, protocolType string) *Parser {
+//	parser := Parser{id: sid, protocolType: protocolType}
+//	parser.initial()
+//	return &parser
+//}
 
 // Parse 解析用户输入输出, 拦截过滤用户输入输出
 

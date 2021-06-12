@@ -25,7 +25,7 @@ type commonSwitch struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	p *SessionServer
+	p *Server
 }
 
 func (s *commonSwitch) Terminate() {

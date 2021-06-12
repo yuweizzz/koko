@@ -2,22 +2,13 @@ package proxy
 
 import (
 	"bytes"
-	"fmt"
-	"net"
 	"os/exec"
-	"strings"
-	"time"
 
-	"github.com/jumpserver/koko/pkg/config"
-	"github.com/jumpserver/koko/pkg/i18n"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/srvconn"
-	"github.com/jumpserver/koko/pkg/utils"
 )
 
 //var _ proxyEngine = (*DBProxyServer)(nil)
-
+/*
 type DBProxyServer struct {
 	UserConn   UserConnection
 	User       *model.User
@@ -278,24 +269,24 @@ func (p *DBProxyServer) Proxy() {
 	logger.Infof("Conn[%s] end database session %s bridge", p.UserConn.ID(), sw.ID)
 }
 
-func (p *DBProxyServer) GenerateRecordCommand(s *commonSwitch, input, output string,
-	riskLevel int64) *model.Command {
-	return &model.Command{
-		SessionID:  s.ID,
-		OrgID:      p.Database.OrgID,
-		Input:      input,
-		Output:     output,
-		User:       fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
-		Server:     p.Database.Name,
-		SystemUser: p.SystemUser.Username,
-		Timestamp:  time.Now().Unix(),
-		RiskLevel:  riskLevel,
+//func (p *DBProxyServer) GenerateRecordCommand(s *commonSwitch, input, output string,
+//	riskLevel int64) *model.Command {
+//	return &model.Command{
+//		SessionID:  s.ID,
+//		OrgID:      p.Database.OrgID,
+//		Input:      input,
+//		Output:     output,
+//		User:       fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
+//		Server:     p.Database.Name,
+//		SystemUser: p.SystemUser.Username,
+//		Timestamp:  time.Now().Unix(),
+//		RiskLevel:  riskLevel,
+//
+//		DateCreated: time.Now(),
+//	}
+//}
 
-		DateCreated: time.Now(),
-	}
-}
-
-func (p *DBProxyServer) NewParser(s *commonSwitch)  {
+//func (p *DBProxyServer) NewParser(s *commonSwitch)  {
 	//dbParser := newDBParser(s.ID)
 	//msg := i18n.T("Create database session failed")
 	//if cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID); err == nil {
@@ -306,7 +297,7 @@ func (p *DBProxyServer) NewParser(s *commonSwitch)  {
 	//	logger.Error(msg + err.Error())
 	//}
 	//return &dbParser
-}
+//}
 
 //func (p *DBProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 //	var dataEnd interface{}
@@ -335,6 +326,8 @@ func (p *DBProxyServer) NewParser(s *commonSwitch)  {
 func (p *DBProxyServer) CheckPermissionExpired(now time.Time) bool {
 	return p.permissionExpireTime < now.Unix()
 }
+*/
+
 
 func IsInstalledMysqlClient() bool {
 	checkLine := "mysql -V"

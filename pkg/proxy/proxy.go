@@ -1,20 +1,12 @@
 package proxy
 
 import (
-	"fmt"
-	"strings"
-	"time"
-
-	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/srvconn"
-	"github.com/jumpserver/koko/pkg/utils"
+	"strings"
 )
 
 //var _ proxyEngine = (*ProxyServer)(nil)
-
+/*
 type ProxyServer struct {
 	UserConn   UserConnection
 	User       *model.User
@@ -457,6 +449,7 @@ func (p *ProxyServer) Proxy() {
 //	return p.permissionExpireTime < now.Unix()
 //}
 
+*/
 func ConvertErrorToReadableMsg(e error) string {
 	if e == nil {
 		return ""

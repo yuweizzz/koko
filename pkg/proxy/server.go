@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	gossh "golang.org/x/crypto/ssh"
 	"net"
 	"net/url"
 	"regexp"
@@ -12,6 +11,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jumpserver/koko/pkg/auth"
+	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
@@ -36,7 +38,7 @@ type ConnectionOptions struct {
 	k8sApp *model.K8sApplication
 }
 
-func (opts ConnectionOptions) TerminalTitle() string {
+func (opts *ConnectionOptions) TerminalTitle() string {
 	title := ""
 	switch opts.ProtocolType {
 	case srvconn.ProtocolTELNET,
@@ -56,6 +58,20 @@ func (opts ConnectionOptions) TerminalTitle() string {
 			opts.k8sApp.Attrs.Cluster)
 	}
 	return title
+}
+
+func (opts *ConnectionOptions) ConnectMsg() string {
+	msg := ""
+	switch opts.ProtocolType {
+	case srvconn.ProtocolTELNET,
+		srvconn.ProtocolSSH:
+		msg = fmt.Sprintf(i18n.T("Connecting to %s@%s"), opts.systemUser.Name, opts.asset.IP)
+	case srvconn.ProtocolMySQL:
+		msg = fmt.Sprintf(i18n.T("Connecting to Database %s"), opts.dbApp)
+	case srvconn.ProtocolK8s:
+		msg = fmt.Sprintf(i18n.T("Connecting to Kubernetes %s"), opts.k8sApp.Attrs.Cluster)
+	}
+	return msg
 }
 
 var (
@@ -78,7 +94,7 @@ var (
 		5. 获取当前的终端配置，（录像和命令存储配置)
 */
 
-func NewSessionServer(conn UserConnection, jmsService *service.JMService, opts ...ConnectionOption) (*SessionServer, error) {
+func NewSessionServer(conn UserConnection, jmsService *service.JMService, opts ...ConnectionOption) (*Server, error) {
 	connOpts := &ConnectionOptions{}
 	for _, setter := range opts {
 		setter(connOpts)
@@ -237,7 +253,7 @@ func NewSessionServer(conn UserConnection, jmsService *service.JMService, opts .
 		return nil, ErrPermission
 	}
 
-	return &SessionServer{
+	return &Server{
 		ID:         apiSession.ID,
 		UserConn:   conn,
 		jmsService: jmsService,
@@ -263,7 +279,7 @@ func NewSessionServer(conn UserConnection, jmsService *service.JMService, opts .
 	}, nil
 }
 
-type SessionServer struct {
+type Server struct {
 	ID         string
 	UserConn   UserConnection
 	jmsService *service.JMService
@@ -286,11 +302,11 @@ type SessionServer struct {
 	DisConnectedCallback     func() error
 }
 
-func (s *SessionServer) CheckPermissionExpired(now time.Time) bool {
+func (s *Server) CheckPermissionExpired(now time.Time) bool {
 	return s.expireInfo.ExpireAt < now.Unix()
 }
 
-func (s *SessionServer) GetFilterParser() ParseEngine {
+func (s *Server) GetFilterParser() ParseEngine {
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolSSH,
 		srvconn.ProtocolTELNET, srvconn.ProtocolK8s:
@@ -313,17 +329,17 @@ func (s *SessionServer) GetFilterParser() ParseEngine {
 	return nil
 }
 
-func (s *SessionServer) GetReplayRecorder() *ReplyRecorder {
+func (s *Server) GetReplayRecorder() *ReplyRecorder {
 
 	return nil
 }
 
-func (s *SessionServer) GetCommandRecorder() *CommandRecorder {
+func (s *Server) GetCommandRecorder() *CommandRecorder {
 
 	return nil
 }
 
-func (s *SessionServer) GenerateCommandItem(input, output string,
+func (s *Server) GenerateCommandItem(input, output string,
 	riskLevel int64, createdDate time.Time) *model.Command {
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolTELNET, srvconn.ProtocolSSH:
@@ -372,7 +388,7 @@ func (s *SessionServer) GenerateCommandItem(input, output string,
 	return nil
 }
 
-func (s *SessionServer) getUsernameIfNeed() (err error) {
+func (s *Server) getUsernameIfNeed() (err error) {
 	if s.systemUserAuthInfo.Username == "" {
 		logger.Infof("Conn[%s] need manuel input system user username", s.UserConn.ID())
 		var username string
@@ -393,7 +409,7 @@ func (s *SessionServer) getUsernameIfNeed() (err error) {
 	return
 }
 
-func (s *SessionServer) getAuthPasswordIfNeed() (err error) {
+func (s *Server) getAuthPasswordIfNeed() (err error) {
 	if s.systemUserAuthInfo.Password == "" {
 		term := utils.NewTerminal(s.UserConn, "password: ")
 		line, err := term.ReadPassword(fmt.Sprintf("%s's password: ", s.systemUserAuthInfo.Username))
@@ -407,7 +423,7 @@ func (s *SessionServer) getAuthPasswordIfNeed() (err error) {
 	return nil
 }
 
-func (s *SessionServer) checkRequiredAuth() error {
+func (s *Server) checkRequiredAuth() error {
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolK8s:
 		if s.systemUserAuthInfo.Token == "" {
@@ -437,6 +453,8 @@ func (s *SessionServer) checkRequiredAuth() error {
 				s.cacheSSHConnection = cacheConn
 				return nil
 			}
+			logger.Debugf("Conn[%s] did not found cache ssh client(%s@%s)",
+				s.UserConn.ID(), s.connOpts.systemUser.Name, s.connOpts.asset.Hostname)
 		}
 
 		if s.systemUserAuthInfo.PrivateKey == "" {
@@ -456,7 +474,7 @@ const (
 	linuxPlatform = "linux"
 )
 
-func (s *SessionServer) checkReuseSSHClient() bool {
+func (s *Server) checkReuseSSHClient() bool {
 	if config.GetConf().ReuseConnection {
 		platformMatched := s.connOpts.asset.Platform == linuxPlatform
 		protocolMatched := s.connOpts.systemUser.Protocol == model.ProtocolSSH
@@ -465,7 +483,7 @@ func (s *SessionServer) checkReuseSSHClient() bool {
 	return false
 }
 
-func (s *SessionServer) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
+func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 	keyId := MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID,
 		s.connOpts.systemUser.ID, s.systemUserAuthInfo.Username)
 	sshClient, ok := srvconn.GetClientFromCache(keyId)
@@ -486,10 +504,13 @@ func (s *SessionServer) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bo
 		_ = sess.Close()
 		return nil, false
 	}
+	reuseMsg := fmt.Sprintf(i18n.T("Reuse SSH connections (%s@%s) [Number of connections: %d]"),
+		s.connOpts.systemUser.Name, s.connOpts.asset.IP, sshClient.RefCount())
+	utils.IgnoreErrWriteString(s.UserConn, reuseMsg+"\r\n")
 	return cacheConn, true
 }
 
-func (s *SessionServer) createAvailableGateWay() (*domainGateway, error) {
+func (s *Server) createAvailableGateWay() (*domainGateway, error) {
 	var dGateway *domainGateway
 	if s.domainGateways != nil {
 		switch s.connOpts.ProtocolType {
@@ -517,7 +538,7 @@ func (s *SessionServer) createAvailableGateWay() (*domainGateway, error) {
 }
 
 // getSSHConn 获取ssh连接
-func (s *SessionServer) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.K8sCon, err error) {
+func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.K8sCon, err error) {
 	clusterServer := s.connOpts.k8sApp.Attrs.Cluster
 	if localTunnelAddr != nil {
 		originUrl, err := url.Parse(clusterServer)
@@ -539,7 +560,7 @@ func (s *SessionServer) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn *sr
 	return
 }
 
-func (s *SessionServer) getMysqlConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.MySQLConn, err error) {
+func (s *Server) getMysqlConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.MySQLConn, err error) {
 	host := s.connOpts.dbApp.Attrs.Host
 	port := s.connOpts.dbApp.Attrs.Port
 	if localTunnelAddr != nil {
@@ -560,7 +581,7 @@ func (s *SessionServer) getMysqlConn(localTunnelAddr *net.TCPAddr) (srvConn *srv
 	return
 }
 
-func (s *SessionServer) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
+func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	key := MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID, s.systemUserAuthInfo.ID,
 		s.systemUserAuthInfo.Username)
 	timeout := config.GlobalConfig.SSHTimeout
@@ -626,7 +647,7 @@ func (s *SessionServer) getSSHConn() (srvConn *srvconn.SSHConnection, err error)
 
 }
 
-func (s *SessionServer) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) {
+func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) {
 	telnetOpts := make([]srvconn.TelnetOption, 0, 8)
 	timeout := config.GlobalConfig.SSHTimeout
 	pty := s.UserConn.Pty()
@@ -667,11 +688,15 @@ func (s *SessionServer) getTelnetConn() (srvConn *srvconn.TelnetConnection, err 
 		}
 		telnetOpts = append(telnetOpts, srvconn.TelnetProxyOptions(proxyArgs))
 	}
-	//telnetConn, err := srvconn.NewTelnetConnection(telnetOpts...)
 	return srvconn.NewTelnetConnection(telnetOpts...)
 }
-func (s *SessionServer) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection, error) {
-
+func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection, error) {
+	done := make(chan struct{})
+	defer func() {
+		utils.IgnoreErrWriteString(s.UserConn, "\r\n")
+		close(done)
+	}()
+	go s.sendConnectingMsg(done)
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolSSH:
 		if s.cacheSSHConnection != nil {
@@ -689,7 +714,38 @@ func (s *SessionServer) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerCon
 	}
 }
 
-func (s *SessionServer) Proxy() {
+func (s *Server) sendConnectingMsg(done chan struct{}) {
+	delay := 0.0
+	msg := fmt.Sprintf("%s %.1f", s.connOpts.ConnectMsg(), delay)
+	utils.IgnoreErrWriteString(s.UserConn, msg)
+	for {
+		select {
+		case <-done:
+			return
+		default:
+			delayS := fmt.Sprintf("%.1f", delay)
+			data := strings.Repeat("\x08", len(delayS)) + delayS
+			utils.IgnoreErrWriteString(s.UserConn, data)
+			time.Sleep(100 * time.Millisecond)
+			delay += 0.1
+		}
+	}
+}
+
+func (s *Server) checkLoginConfirm() bool {
+	opts := make([]auth.ConfirmOption, 0, 4)
+	opts = append(opts, auth.ConfirmWithUser(s.connOpts.user))
+	opts = append(opts, auth.ConfirmWithSystemUser(s.connOpts.systemUser))
+	opts = append(opts, auth.ConfirmWithTargetID(s.connOpts.asset.ID))
+	switch s.connOpts.ProtocolType {
+	case srvconn.ProtocolMySQL, srvconn.ProtocolK8s:
+		opts = append(opts, auth.ConfirmWithTargetType(model.AppType))
+	}
+	srv := auth.NewLoginConfirm(s.jmsService, opts...)
+	return validateLoginConfirm(&srv, s.UserConn)
+}
+
+func (s *Server) Proxy() {
 	if err := s.checkRequiredAuth(); err != nil {
 		logger.Errorf("Conn[%s]: check basic auth failed: %s", s.UserConn.ID(), err)
 		return
@@ -699,6 +755,9 @@ func (s *SessionServer) Proxy() {
 			_ = s.cacheSSHConnection.Close()
 		}
 	}()
+	if s.checkLoginConfirm() {
+		return
+	}
 	ctx, cancel := context.WithCancel(s.UserConn.Context())
 	sw := commonSwitch{
 		ID:            s.ID,
@@ -752,17 +811,31 @@ func (s *SessionServer) Proxy() {
 	}
 }
 
-func (s *SessionServer) sendConnectErrorMsg(err error) {
-	msg := fmt.Sprintf("Connect K8s %s error: %s\r\n", s.connOpts.k8sApp.Attrs.Cluster, err)
+func (s *Server) sendConnectErrorMsg(err error) {
+	msg := fmt.Sprintf("%s error: %s", s.connOpts.ConnectMsg(),
+		ConvertErrorToReadableMsg(err))
 	utils.IgnoreErrWriteString(s.UserConn, msg)
+	utils.IgnoreErrWriteString(s.UserConn, utils.CharNewLine)
 	logger.Error(msg)
-	token := s.systemUserAuthInfo.Token
-	if token != "" {
-		tokenLen := len(token)
-		showLen := tokenLen / 2
-		hiddenLen := tokenLen - showLen
-		msg2 := fmt.Sprintf("Try token: %s", token[:showLen]+strings.Repeat("*", hiddenLen))
-		logger.Errorf(msg2)
+	switch s.connOpts.ProtocolType {
+	case srvconn.ProtocolK8s:
+		token := s.systemUserAuthInfo.Token
+		if token != "" {
+			tokenLen := len(token)
+			showLen := tokenLen / 2
+			hiddenLen := tokenLen - showLen
+			msg2 := fmt.Sprintf("Try token: %s", token[:showLen]+strings.Repeat("*", hiddenLen))
+			logger.Error(msg2)
+		}
+	default:
+		password := s.systemUserAuthInfo.Password
+		if password != "" {
+			passwordLen := len(s.systemUserAuthInfo.Password)
+			showLen := passwordLen / 2
+			hiddenLen := passwordLen - showLen
+			msg2 := fmt.Sprintf("Try password: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
+			logger.Error(msg2)
+		}
 	}
 }
 

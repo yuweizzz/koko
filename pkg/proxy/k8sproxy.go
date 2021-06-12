@@ -2,23 +2,15 @@ package proxy
 
 import (
 	"encoding/json"
-	"fmt"
+	"github.com/jumpserver/koko/pkg/logger"
 	"net"
 	"net/url"
 	"os/exec"
 	"strconv"
-	"strings"
-	"time"
-
-	"github.com/jumpserver/koko/pkg/i18n"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/srvconn"
-	"github.com/jumpserver/koko/pkg/utils"
 )
 
 //var _ proxyEngine = (*K8sProxyServer)(nil)
-
+/*
 type K8sProxyServer struct {
 	UserConn   UserConnection
 	User       *model.User
@@ -317,6 +309,7 @@ func (p *K8sProxyServer) CheckPermissionExpired(now time.Time) bool {
 	return p.permissionExpireTime < now.Unix()
 }
 
+*/
 func IsInstalledKubectlClient() bool {
 	checkLine := "kubectl version --client -o json"
 	cmd := exec.Command("bash", "-c", checkLine)
