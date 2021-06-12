@@ -9,12 +9,6 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-type confirmStatusResponse struct {
-	Status    string `json:"status"`
-	Action    string `json:"action"`
-	Processor string `json:"processor"`
-}
-
 type connectionConfirmOption struct {
 	user       *model.User
 	systemUser *model.SystemUser

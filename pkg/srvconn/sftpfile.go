@@ -756,7 +756,7 @@ func (ad *AssetDir) getCacheSftpConn(su *model.SystemUser) (*SftpConn, bool) {
 	if ok {
 		logger.Infof("User %s get reuse ssh client(%s@%s)",
 			ad.user.Name, su.Name, ad.asset.Hostname)
-		sess, err := sshClient.NewSession()
+		sess, err := sshClient.AcquireSession()
 		if err != nil {
 			logger.Errorf("User %s reuse ssh client(%s) new session err: %s",
 				ad.user.Name, sshClient, err)
@@ -840,15 +840,13 @@ func (ad *AssetDir) getNewSftpConn(su *model.SystemUser) (conn *SftpConn, err er
 		logger.Errorf("Get new SSH client err: %s", err)
 		return nil, err
 	}
-	sess, err := sshClient.NewSession()
+	sess, err := sshClient.AcquireSession()
 	if err != nil {
 		logger.Errorf("SSH client(%s) start sftp client session err %s", sshClient, err)
 		_ = sshClient.Close()
 		return nil, err
 	}
-	if ad.reuse {
-		AddClientCache(key, sshClient)
-	}
+	AddClientCache(key, sshClient)
 	sftpClient, err := NewSftpConn(sess)
 	if err != nil {
 		logger.Errorf("SSH client(%s) start sftp conn err %s", sshClient, err)

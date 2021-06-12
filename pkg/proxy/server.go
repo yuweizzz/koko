@@ -18,6 +18,7 @@ import (
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
+	modelCommon "github.com/jumpserver/koko/pkg/jms-sdk-go/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -152,6 +153,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		sysUserAuthInfo *model.SystemUserAuthInfo
 		domainGateways  *model.Domain
 		expireInfo      *model.ExpireInfo
+		platform        *model.Platform
 	)
 
 	switch connOpts.ProtocolType {
@@ -184,6 +186,11 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
 		}
 		expireInfo = &permInfo
+		assetPlatform, err2 := jmsService.GetAssetPlatform(connOpts.asset.ID)
+		if err2 != nil {
+			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err2)
+		}
+		platform = &assetPlatform
 		apiSession = &model.Session{
 			ID:           common.UUID(),
 			User:         connOpts.user.String(),
@@ -294,13 +301,16 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		UserConn:   conn,
 		jmsService: jmsService,
 
+		connOpts:           connOpts,
 		systemUserAuthInfo: sysUserAuthInfo,
 
 		filterRules:    filterRules,
 		terminalConf:   &terminalConf,
 		domainGateways: domainGateways,
 		expireInfo:     expireInfo,
+		platform:       platform,
 		CreateSessionCallback: func() error {
+			apiSession.DateStart = modelCommon.NewNowUTCTime()
 			return jmsService.CreateSession(*apiSession)
 		},
 		ConnectedSuccessCallback: func() error {
@@ -519,7 +529,7 @@ func (s *Server) checkRequiredAuth() error {
 }
 
 const (
-	linuxPlatform = "linux"
+	linuxPlatform = "Linux"
 )
 
 func (s *Server) checkReuseSSHClient() bool {
@@ -538,8 +548,9 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 	if !ok {
 		return nil, ok
 	}
-	sess, err := sshClient.NewSession()
+	sess, err := sshClient.AcquireSession()
 	if err != nil {
+		logger.Errorf("Cache ssh client new session failed: %s", err)
 		return nil, false
 	}
 	pty := s.UserConn.Pty()
@@ -549,12 +560,18 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 			Height: pty.Window.Height,
 		}), srvconn.SSHTerm(pty.Term))
 	if err != nil {
+		logger.Errorf("Cache ssh session failed: %s", err)
 		_ = sess.Close()
+		sshClient.ReleaseSession(sess)
 		return nil, false
 	}
 	reuseMsg := fmt.Sprintf(i18n.T("Reuse SSH connections (%s@%s) [Number of connections: %d]"),
 		s.connOpts.systemUser.Name, s.connOpts.asset.IP, sshClient.RefCount())
 	utils.IgnoreErrWriteString(s.UserConn, reuseMsg+"\r\n")
+	go func() {
+		_ = sess.Wait()
+		sshClient.ReleaseSession(sess)
+	}()
 	return cacheConn, true
 }
 
@@ -672,14 +689,11 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		logger.Errorf("Get new ssh client err: %s", err)
 		return nil, err
 	}
-	sess, err := sshClient.NewSession()
+	srvconn.AddClientCache(key, sshClient)
+	sess, err := sshClient.AcquireSession()
 	if err != nil {
 		logger.Errorf("SSH client(%s) start sftp client session err %s", sshClient, err)
-		_ = sshClient.Close()
 		return nil, err
-	}
-	if config.GetConf().ReuseConnection {
-		srvconn.AddClientCache(key, sshClient)
 	}
 	pty := s.UserConn.Pty()
 	sshConn, err := srvconn.NewSSHConnection(sess, srvconn.SSHCharset(s.platform.Charset),
@@ -689,8 +703,13 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		}), srvconn.SSHTerm(pty.Term))
 	if err != nil {
 		_ = sess.Close()
+		sshClient.ReleaseSession(sess)
 		return nil, err
 	}
+	go func() {
+		_ = sess.Wait()
+		sshClient.ReleaseSession(sess)
+	}()
 	return sshConn, nil
 
 }
@@ -740,6 +759,9 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 }
 
 func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection, error) {
+	if s.cacheSSHConnection != nil {
+		return s.cacheSSHConnection, nil
+	}
 	done := make(chan struct{})
 	defer func() {
 		utils.IgnoreErrWriteString(s.UserConn, "\r\n")
@@ -748,9 +770,6 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 	go s.sendConnectingMsg(done)
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolSSH:
-		if s.cacheSSHConnection != nil {
-			return s.cacheSSHConnection, nil
-		}
 		return s.getSSHConn()
 	case srvconn.ProtocolTELNET:
 		return s.getTelnetConn()
@@ -804,7 +823,8 @@ func (s *Server) Proxy() {
 			_ = s.cacheSSHConnection.Close()
 		}
 	}()
-	if s.checkLoginConfirm() {
+	if !s.checkLoginConfirm() {
+		logger.Errorf("Conn[%s]: check login confirm failed", s.UserConn.ID())
 		return
 	}
 	ctx, cancel := context.WithCancel(s.UserConn.Context())
@@ -848,7 +868,6 @@ func (s *Server) Proxy() {
 		default:
 		}
 	}
-
 	srvCon, err := s.getServerConn(proxyAddr)
 	if err != nil {
 		logger.Error(err)
@@ -858,6 +877,7 @@ func (s *Server) Proxy() {
 		}
 		return
 	}
+	defer srvCon.Close()
 
 	logger.Infof("Conn[%s] create session %s success", s.UserConn.ID(), s.ID)
 	if err2 := s.ConnectedSuccessCallback(); err2 != nil {

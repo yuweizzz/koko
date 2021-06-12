@@ -24,27 +24,34 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 			authMethod = "password"
 		}
 		remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
-		userClient, ok := ctx.Value(ContextKeyClient).(*service.UserAuthClient)
+		userAuthClient, ok := ctx.Value(ContextKeyClient).(*UserAuthClient)
 		if !ok {
 			newClient := jmsService.CloneClient()
-			sessionClient := service.NewUserAuthClient(service.UserClientUsername(username),
-				service.UserClientPassword(remoteAddr), service.UserClientLoginType("T"),
-				service.UserClientHttpClient(&newClient))
-			userClient = &sessionClient
+
+			userClient := service.NewUserClient(
+				service.UserClientUsername(username),
+				service.UserClientRemoteAddr(remoteAddr),
+				service.UserClientLoginType("T"),
+				service.UserClientHttpClient(&newClient),
+			)
+			userAuthClient = &UserAuthClient{
+				UserClient:  userClient,
+				authOptions: make(map[string]authOptions),
+			}
 			ctx.SetValue(ContextKeyClient, userClient)
 		}
-		userClient.SetOption(service.UserClientPassword(password),
+		userAuthClient.SetOption(service.UserClientPassword(password),
 			service.UserClientPublicKey(publicKey))
 		logger.Infof("SSH conn[%s] authenticating user %s %s", ctx.SessionID(), username, authMethod)
-		user, authStatus := userClient.Authenticate(ctx)
+		user, authStatus := userAuthClient.Authenticate(ctx)
 		switch authStatus {
-		case service.AuthMFARequired:
+		case authMFARequired:
 			action = actionPartialAccepted
 			res = sshd.AuthPartiallySuccessful
-		case service.AuthSuccess:
+		case authSuccess:
 			res = sshd.AuthSuccessful
 			ctx.SetValue(ContextKeyUser, &user)
-		case service.AuthConfirmRequired:
+		case authConfirmRequired:
 			required := true
 			ctx.SetValue(ContextKeyConfirmRequired, &required)
 			action = actionPartialAccepted
@@ -71,7 +78,7 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 	instruction := mfaInstruction
 	question := mfaQuestion
 
-	client, ok := ctx.Value(ContextKeyClient).(*service.UserAuthClient)
+	client, ok := ctx.Value(ContextKeyClient).(*UserAuthClient)
 	if !ok {
 		logger.Errorf("SSH conn[%s] user %s Mfa Auth failed: not found session client.",
 			ctx.SessionID(), username)
@@ -97,7 +104,7 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 			logger.Infof("SSH conn[%s] checking user %s login confirm", ctx.SessionID(), username)
 			user, authStatus := client.CheckConfirm(ctx)
 			switch authStatus {
-			case service.AuthSuccess:
+			case authSuccess:
 				res = sshd.AuthSuccessful
 				ctx.SetValue(ContextKeyUser, &user)
 				logger.Infof("SSH conn[%s] checking user %s login confirm success", ctx.SessionID(), username)
@@ -118,12 +125,12 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 	logger.Infof("SSH conn[%s] checking user %s mfa code", ctx.SessionID(), username)
 	user, authStatus := client.CheckUserOTP(ctx, mfaCode)
 	switch authStatus {
-	case service.AuthSuccess:
+	case authSuccess:
 		res = sshd.AuthSuccessful
 		ctx.SetValue(ContextKeyUser, &user)
 		logger.Infof("SSH conn[%s] %s MFA for %s from %s", ctx.SessionID(),
 			actionAccepted, username, remoteAddr)
-	case service.AuthConfirmRequired:
+	case authConfirmRequired:
 		res = sshd.AuthPartiallySuccessful
 		required := true
 		ctx.SetValue(ContextKeyConfirmRequired, &required)

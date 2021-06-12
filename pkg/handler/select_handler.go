@@ -8,7 +8,6 @@ import (
 
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/utils"
 )
@@ -46,8 +45,6 @@ type UserSelectHandler struct {
 	currentResult []map[string]interface{}
 
 	*pageInfo
-
-	jmsService *service.JMService
 }
 
 func (u *UserSelectHandler) SetSelectType(s selectType) {

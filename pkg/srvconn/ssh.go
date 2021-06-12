@@ -3,13 +3,14 @@ package srvconn
 import (
 	"errors"
 	"fmt"
-	"github.com/jumpserver/koko/pkg/logger"
 	"net"
 	"strconv"
 	"sync"
 	"time"
 
 	gossh "golang.org/x/crypto/ssh"
+
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 type SSHClientOption func(conf *SSHClientOptions)
@@ -191,7 +192,8 @@ func NewSSHClientWithCfg(cfg *SSHClientOptions) (*SSHClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &SSHClient{Client: gosshClient, Cfg: cfg}, nil
+	return &SSHClient{Client: gosshClient, Cfg: cfg,
+		traceSessionMap: make(map[*gossh.Session]time.Time)}, nil
 }
 
 type SSHClient struct {
@@ -231,11 +233,7 @@ func (s *SSHClient) AcquireSession() (*gossh.Session, error) {
 		return nil, err
 	}
 	s.traceSessionMap[sess] = time.Now()
-	go func() {
-		// 释放 session
-		_ = sess.Wait()
-		s.ReleaseSession(sess)
-	}()
+	logger.Infof("SSHClient(%s) session add one ", s)
 	return sess, nil
 }
 
@@ -243,6 +241,7 @@ func (s *SSHClient) ReleaseSession(sess *gossh.Session) {
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
 	delete(s.traceSessionMap, sess)
+	logger.Infof("SSHClient(%s) release one session remain %d", s, len(s.traceSessionMap))
 }
 
 var (

@@ -146,6 +146,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 	}
 	srv, err := proxy.NewServer(u.h.sess,
 		u.h.jmsService,
+		proxy.ConnectProtocolType(selectedSystemUser.Protocol),
 		proxy.ConnectUser(u.h.user),
 		proxy.ConnectAsset(&asset),
 		proxy.ConnectSystemUser(&selectedSystemUser),

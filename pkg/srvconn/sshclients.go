@@ -22,7 +22,7 @@ func (u *UserSSHClient) GetClient() *SSHClient {
 	var refCount int
 	// 取引用最少的 SSHClient
 	for clientItem := range u.data {
-		if clientItem.RefCount() <= refCount {
+		if refCount <= clientItem.RefCount() {
 			refCount = clientItem.RefCount()
 			selectClient = clientItem
 		}
@@ -69,8 +69,6 @@ type SSHManager struct {
 	searchChan chan string // prefix
 }
 
-const fiveMin = time.Minute * 5
-
 func (s *SSHManager) run() {
 	tick := time.NewTicker(time.Minute)
 	defer tick.Stop()
@@ -83,7 +81,7 @@ func (s *SSHManager) run() {
 				1. 5 分钟无访问则 让所有的 UserSSHClient recycleClients
 				2. 并清理 count==0 的 UserSSHClient
 			*/
-			if now.After(latestVisited.Add(fiveMin)) {
+			if now.After(latestVisited.Add(time.Minute)) {
 				needRemovedClients := make([]string, 0, len(data))
 				for key, userClient := range data {
 					userClient.recycleClients()
@@ -98,13 +96,14 @@ func (s *SSHManager) run() {
 					logger.Infof("Remove %d user clients remain %d",
 						len(needRemovedClients), len(data))
 				}
-				continue
 			}
-
+			continue
 		case reqKey := <-s.reqChan:
 			var foundClient *SSHClient
 			if userClient, ok := data[reqKey]; ok {
 				foundClient = userClient.GetClient()
+				logger.Infof("Found client(%s) and remain %d",
+					foundClient, userClient.Count())
 			}
 			s.resultChan <- foundClient
 
@@ -113,6 +112,8 @@ func (s *SSHManager) run() {
 			for key, userClient := range data {
 				if strings.HasPrefix(key, prefixKey) {
 					foundClient = userClient.GetClient()
+					logger.Infof("Found client(%s) and remain %d",
+						foundClient, userClient.Count())
 					break
 				}
 			}
