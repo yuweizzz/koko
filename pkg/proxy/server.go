@@ -574,6 +574,7 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 	go func() {
 		_ = sess.Wait()
 		sshClient.ReleaseSession(sess)
+		logger.Infof("Reuse SSH client(%s) shell connection release", sshClient)
 	}()
 	return cacheConn, true
 }
@@ -711,6 +712,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	go func() {
 		_ = sess.Wait()
 		sshClient.ReleaseSession(sess)
+		logger.Infof("SSH client(%s) shell connection release", sshClient)
 	}()
 	return sshConn, nil
 

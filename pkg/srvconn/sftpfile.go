@@ -764,18 +764,24 @@ func (ad *AssetDir) getCacheSftpConn(su *model.SystemUser) (*SftpConn, bool) {
 				ad.user.Name, sshClient, err)
 			return nil, false
 		}
-
 		sftpClient, err := NewSftpConn(sess)
 		if err != nil {
 			_ = sess.Close()
+			sshClient.ReleaseSession(sess)
 			logger.Errorf("User %s reuse ssh client(%s@%s) start sftp conn err: %s",
 				ad.user.Name, su.Name, ad.asset.Hostname, err)
 			return nil, false
 		}
+		go func() {
+			_ = sftpClient.Wait()
+			sshClient.ReleaseSession(sess)
+			logger.Infof("Reuse ssh client(%s) for SFTP release", sshClient)
+		}()
 		HomeDirPath, err := sftpClient.Getwd()
 		if err != nil {
 			logger.Errorf("Reuse client(%s@%s) get home dir err: %s",
 				su.Name, ad.asset.Hostname, err)
+			_ = sftpClient.Close()
 			_ = sess.Close()
 			return nil, false
 		}
@@ -849,6 +855,7 @@ func (ad *AssetDir) getNewSftpConn(su *model.SystemUser) (conn *SftpConn, err er
 	go func() {
 		_ = sftpClient.Wait()
 		sshClient.ReleaseSession(sess)
+		logger.Infof("ssh client(%s) for SFTP release", sshClient)
 	}()
 	HomeDirPath, err := sftpClient.Getwd()
 	if err != nil {
