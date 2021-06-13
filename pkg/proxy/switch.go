@@ -16,7 +16,7 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-type commonSwitch struct {
+type SwitchSession struct {
 	ID string
 
 	MaxIdleTime   int
@@ -28,7 +28,7 @@ type commonSwitch struct {
 	p *Server
 }
 
-func (s *commonSwitch) Terminate() {
+func (s *SwitchSession) Terminate() {
 	select {
 	case <-s.ctx.Done():
 		return
@@ -38,11 +38,11 @@ func (s *commonSwitch) Terminate() {
 	logger.Infof("Session[%s] receive terminate task from admin", s.ID)
 }
 
-func (s *commonSwitch) SessionID() string {
+func (s *SwitchSession) SessionID() string {
 	return s.ID
 }
 
-func (s *commonSwitch) recordCommand(cmdRecordChan chan *ExecutedCommand) {
+func (s *SwitchSession) recordCommand(cmdRecordChan chan *ExecutedCommand) {
 	// 命令记录
 	//cmdRecorder := NewCommandRecorder(s.ID)
 	cmdRecorder := s.p.GetCommandRecorder()
@@ -58,7 +58,7 @@ func (s *commonSwitch) recordCommand(cmdRecordChan chan *ExecutedCommand) {
 }
 
 // generateCommandResult 生成命令结果
-func (s *commonSwitch) generateCommandResult(item *ExecutedCommand) *model.Command {
+func (s *SwitchSession) generateCommandResult(item *ExecutedCommand) *model.Command {
 	var input string
 	var output string
 	var riskLevel int64
@@ -86,7 +86,7 @@ func (s *commonSwitch) generateCommandResult(item *ExecutedCommand) *model.Comma
 }
 
 // Bridge 桥接两个链接
-func (s *commonSwitch) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
+func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
 
 	parser := s.p.GetFilterParser()
 	logger.Infof("Conn[%s] create ParseEngine success", userConn.ID())

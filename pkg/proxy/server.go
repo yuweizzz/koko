@@ -575,29 +575,28 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 	return cacheConn, true
 }
 
-func (s *Server) createAvailableGateWay() (*domainGateway, error) {
+func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, error) {
 	var dGateway *domainGateway
-	if s.domainGateways != nil {
-		switch s.connOpts.ProtocolType {
-		case srvconn.ProtocolK8s:
-			dstHost, dstPort, err := ParseUrlHostAndPort(s.connOpts.k8sApp.Attrs.Cluster)
-			if err != nil {
-				return nil, err
-			}
-			dGateway = &domainGateway{
-				domain:  s.domainGateways,
-				dstIP:   dstHost,
-				dstPort: dstPort,
-			}
-		case srvconn.ProtocolMySQL:
-			dGateway = &domainGateway{
-				domain:  s.domainGateways,
-				dstIP:   s.connOpts.dbApp.Attrs.Host,
-				dstPort: s.connOpts.dbApp.Attrs.Port,
-			}
-		default:
-
+	switch s.connOpts.ProtocolType {
+	case srvconn.ProtocolK8s:
+		dstHost, dstPort, err := ParseUrlHostAndPort(s.connOpts.k8sApp.Attrs.Cluster)
+		if err != nil {
+			return nil, err
 		}
+		dGateway = &domainGateway{
+			domain:  domain,
+			dstIP:   dstHost,
+			dstPort: dstPort,
+		}
+	case srvconn.ProtocolMySQL:
+		dGateway = &domainGateway{
+			domain:  domain,
+			dstIP:   s.connOpts.dbApp.Attrs.Host,
+			dstPort: s.connOpts.dbApp.Attrs.Port,
+		}
+	default:
+		return nil, fmt.Errorf("%w: %s", ErrUnMatchProtocol,
+			s.connOpts.ProtocolType)
 	}
 	return dGateway, nil
 }
@@ -828,7 +827,7 @@ func (s *Server) Proxy() {
 		return
 	}
 	ctx, cancel := context.WithCancel(s.UserConn.Context())
-	sw := commonSwitch{
+	sw := SwitchSession{
 		ID:            s.ID,
 		MaxIdleTime:   s.terminalConf.MaxIdleTime,
 		keepAliveTime: 60,
@@ -851,7 +850,7 @@ func (s *Server) Proxy() {
 	if s.domainGateways != nil {
 		switch s.connOpts.ProtocolType {
 		case srvconn.ProtocolMySQL, srvconn.ProtocolK8s:
-			dGateway, err := s.createAvailableGateWay()
+			dGateway, err := s.createAvailableGateWay(s.domainGateways)
 			if err != nil {
 				logger.Error(err)
 				utils.IgnoreErrWriteString(s.UserConn, err.Error())

@@ -265,7 +265,7 @@ func (u *UserSftpConn) ParsePath(path string) (fi os.FileInfo, restPath string) 
 func (u *UserSftpConn) initial() {
 	nodeTrees, err := u.jmsService.GetNodeTreeByUserAndNodeKey(u.User.ID, "")
 	if err != nil {
-		// todo log
+		logger.Errorf("User sftp initial err: %s", err)
 		return
 	}
 	if u.Dirs == nil {

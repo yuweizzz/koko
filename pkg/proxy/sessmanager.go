@@ -4,26 +4,7 @@ import (
 	"sync"
 )
 
-//var sessionMap = make(map[string]Session)
-//var lock = new(sync.RWMutex)
-
 var sessManager = newSessionManager()
-
-//type Session interface {
-//	SessionID() string
-//	Terminate()
-//}
-
-//func HandleSessionTask(task model.TerminalTask) {
-//	switch task.Name {
-//	case "kill_session":
-//		if ok := KillSession(task.Args); ok {
-//			//service.FinishTask(task.ID)
-//		}
-//	default:
-//
-//	}
-//}
 
 func KillSession(sessionID string) bool {
 	if sw, ok := sessManager.Get(sessionID); ok {
@@ -34,82 +15,34 @@ func KillSession(sessionID string) bool {
 }
 
 func GetAliveSessions() []string {
-	//lock.RLock()
-	//defer lock.RUnlock()
-	//sids := make([]string, 0, len(sessionMap))
-	//for sid := range sessionMap {
-	//	sids = append(sids, sid)
-	//}
-	//
 	return sessManager.Range()
 }
 
-//func GetAliveSessionCount() int {
-//	lock.RLock()
-//	defer lock.RUnlock()
-//	return len(sessionMap)
-//}
-
-//func AddSession(sw Session) {
-//	lock.Lock()
-//	defer lock.Unlock()
-//	sessionMap[sw.SessionID()] = sw
-//}
-
-//func postSession(data map[string]interface{}) bool {
-//	for i := 0; i < 5; i++ {
-//		if service.CreateSession(data) {
-//			return true
-//		}
-//		time.Sleep(200 * time.Millisecond)
-//	}
-//	return false
-//}
-
-//func finishSession(data map[string]interface{}) {
-//	service.FinishSession(data)
-//}
-
-//func CreateCommonSwitch(p proxyEngine) (s *commonSwitch, ok bool) {
-//	s = NewCommonSwitch(p)
-//	//ok = postSession(s.MapData())
-//	if ok {
-//		AddSession(s)
-//	}
-//	return s, ok
-//}
-
-
-
-func AddCommonSwitch(s *commonSwitch) {
-	//lock.Lock()
-	//defer lock.Unlock()
-	//delete(sessionMap, s.ID)
-	//finishSession(s.MapData())
-	//logger.Infof("Session %s has finished", s.ID)
+func AddCommonSwitch(s *SwitchSession) {
 	sessManager.Add(s.ID, s)
 }
 
-func RemoveCommonSwitch(s *commonSwitch) {
-	//lock.Lock()
-	//defer lock.Unlock()
-	//delete(sessionMap, s.ID)
-	//finishSession(s.MapData())
-	//logger.Infof("Session %s has finished", s.ID)
+func RemoveCommonSwitch(s *SwitchSession) {
 	sessManager.Delete(s.ID)
 }
 
+func newSessionManager() *sessionManager {
+	return &sessionManager{
+		data: make(map[string]*SwitchSession),
+	}
+}
+
 type sessionManager struct {
-	data map[string]*commonSwitch
+	data map[string]*SwitchSession
 	sync.Mutex
 }
 
-func (s *sessionManager) Add(id string, sess *commonSwitch) {
+func (s *sessionManager) Add(id string, sess *SwitchSession) {
 	s.Lock()
 	defer s.Unlock()
 	s.data[id] = sess
 }
-func (s *sessionManager) Get(id string) (sess *commonSwitch, ok bool) {
+func (s *sessionManager) Get(id string) (sess *SwitchSession, ok bool) {
 	s.Lock()
 	defer s.Unlock()
 	sess, ok = s.data[id]
@@ -130,10 +63,4 @@ func (s *sessionManager) Range() []string {
 		sids = append(sids, sid)
 	}
 	return sids
-}
-
-func newSessionManager() *sessionManager {
-	return &sessionManager{
-		data: make(map[string]*commonSwitch),
-	}
 }

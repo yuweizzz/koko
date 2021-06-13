@@ -11,6 +11,7 @@ import (
 	"github.com/LeeEirc/elfinder"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/httpd/ws"
@@ -111,7 +112,7 @@ func (s *Server) ProcessTerminalWebsocket(ctx *gin.Context) {
 		systemUserId string // optional
 	)
 
-	userValue, ok = ctx.Get(ginCtxUserKey)
+	userValue, ok = ctx.Get(auth.ContextKeyUser)
 	if !ok {
 		logger.Errorf("Ws has no valid user from ip %s", ctx.ClientIP())
 		ctx.AbortWithStatus(http.StatusBadRequest)
@@ -175,7 +176,7 @@ func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
 		targetId    string
 		ok          bool
 	)
-	if userValue, ok = ctx.Get(ginCtxUserKey); !ok {
+	if userValue, ok = ctx.Get(auth.ContextKeyUser); !ok {
 		logger.Errorf("Ws has no valid user from ip %s", ctx.ClientIP())
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return

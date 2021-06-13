@@ -15,33 +15,6 @@ import (
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
-//func SftpHandler(sess ssh.Session) {
-//	currentUser, ok := sess.Context().Value(auth.ContextKeyUser).(*model.User)
-//	if !ok || currentUser.ID == "" {
-//		logger.Errorf("SFTP User not found, exit.")
-//		return
-//	}
-//	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
-//	userSftp := NewSFTPHandler(currentUser, host)
-//	handlers := sftp.Handlers{
-//		FileGet:  userSftp,
-//		FilePut:  userSftp,
-//		FileCmd:  userSftp,
-//		FileList: userSftp,
-//	}
-//	reqID := common.UUID()
-//	logger.Infof("SFTP request %s: Handler start", reqID)
-//	req := sftp.NewRequestServer(sess, handlers)
-//	if err := req.Serve(); err == io.EOF {
-//		logger.Debugf("SFTP request %s: Exited session.", reqID)
-//	} else if err != nil {
-//		logger.Errorf("SFTP request %s: Server completed with error %s", reqID, err)
-//	}
-//	_ = req.Close()
-//	userSftp.Close()
-//	logger.Infof("SFTP request %s: Handler exit.", reqID)
-//}
-
 func NewSFTPHandler(jmsService *service.JMService, user *model.User, addr string) *sftpHandler {
 	return &sftpHandler{UserSftpConn: srvconn.NewUserSftpConn(jmsService, user, addr)}
 }

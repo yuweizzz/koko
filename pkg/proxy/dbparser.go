@@ -21,20 +21,11 @@ const (
 
 var _ ParseEngine = (*DBParser)(nil)
 
-//func newDBParser(id string) DBParser {
-//	dbParser := DBParser{
-//		id: id,
-//	}
-//	dbParser.initial()
-//	return dbParser
-//}
-
 type DBParser struct {
 	id string
 
 	userOutputChan chan []byte
 	srvOutputChan  chan []byte
-	//cmdRecordChan  chan [3]string
 	cmdRecordChan chan *ExecutedCommand
 
 	inputInitial  bool
@@ -61,7 +52,6 @@ func (p *DBParser) initial() {
 	p.cmdOutputParser = NewCmdParser(p.id, DBOutputParserName)
 
 	p.closed = make(chan struct{})
-	//p.cmdRecordChan = make(chan [3]string, 1024)
 	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
 }
 
@@ -194,11 +184,6 @@ func (p *DBParser) ParseServerOutput(b []byte) []byte {
 	p.splitCmdStream(b)
 	return b
 }
-//
-//// SetCMDFilterRules 设置命令过滤规则
-//func (p *DBParser) SetCMDFilterRules(rules []model.SystemUserFilterRule) {
-//	p.cmdFilterRules = rules
-//}
 
 // IsCommandForbidden 判断命令是不是在过滤规则中
 func (p *DBParser) IsCommandForbidden() (string, bool) {

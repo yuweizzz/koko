@@ -307,12 +307,14 @@ func (ad *AssetDir) loadSystemUsers() {
 		if detailAsset.ID == ad.asset.ID {
 			ad.asset = &detailAsset
 		}
-		domainGateways, err := ad.jmsService.GetDomainGateways(ad.asset.Domain)
-		if err != nil {
-			logger.Errorf("Get asset %s domain err: %s", ad.asset.Hostname, err)
-			return
+		if ad.asset.Domain != "" {
+			domainGateways, err := ad.jmsService.GetDomainGateways(ad.asset.Domain)
+			if err != nil {
+				logger.Errorf("Get asset %s domain err: %s", ad.asset.Hostname, err)
+				return
+			}
+			ad.domain = &domainGateways
 		}
-		ad.domain = &domainGateways
 	})
 }
 

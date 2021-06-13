@@ -8,8 +8,7 @@ import (
 )
 
 func proxyRoom(room *Room, ch *redisChannel, userInputCh chan *RoomMessage) {
-	// todo : 获取超时时间
-	//maxIdleTime := config.GetConf().MaxIdleTime
+	maxIdleTime := time.Minute * 30
 	tick := time.NewTicker(time.Second * 30)
 	defer tick.Stop()
 	defer func() {
@@ -28,8 +27,7 @@ func proxyRoom(room *Room, ch *redisChannel, userInputCh chan *RoomMessage) {
 			return
 
 		case tickNow := <-tick.C:
-			// todo 暂定 30分钟超时
-			if !tickNow.After(active.Add(30 * time.Minute)) {
+			if !tickNow.After(active.Add(maxIdleTime)) {
 				continue
 			}
 			logger.Errorf("Redis room %s exceed max idle time", ch.roomId)
