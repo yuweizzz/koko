@@ -808,11 +808,22 @@ func (s *Server) checkLoginConfirm() bool {
 	opts := make([]auth.ConfirmOption, 0, 4)
 	opts = append(opts, auth.ConfirmWithUser(s.connOpts.user))
 	opts = append(opts, auth.ConfirmWithSystemUser(s.connOpts.systemUser))
-	opts = append(opts, auth.ConfirmWithTargetID(s.connOpts.asset.ID))
+	var (
+		targetType string
+		targetId   string
+	)
 	switch s.connOpts.ProtocolType {
-	case srvconn.ProtocolMySQL, srvconn.ProtocolK8s:
-		opts = append(opts, auth.ConfirmWithTargetType(model.AppType))
+	case srvconn.ProtocolMySQL:
+		targetType = model.AppType
+		targetId = s.connOpts.dbApp.ID
+	case srvconn.ProtocolK8s:
+		targetType = model.AppType
+		targetId = s.connOpts.k8sApp.ID
+	default:
+		targetId = s.connOpts.asset.ID
 	}
+	opts = append(opts, auth.ConfirmWithTargetType(targetType))
+	opts = append(opts, auth.ConfirmWithTargetID(targetId))
 	srv := auth.NewLoginConfirm(s.jmsService, opts...)
 	return validateLoginConfirm(&srv, s.UserConn)
 }
