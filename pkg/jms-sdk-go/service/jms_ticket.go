@@ -7,13 +7,6 @@ import (
 )
 
 func (s *JMService) SubmitCommandConfirm(sid string, ruleId string, cmd string) (res ConfirmResponse, err error) {
-	/*
-		{
-		session_id: sid,
-		rule_id : ruleId,
-		command: cmd,
-		}
-	*/
 	data := map[string]string{
 		"session_id":         sid,
 		"cmd_filter_rule_id": ruleId,

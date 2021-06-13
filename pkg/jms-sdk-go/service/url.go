@@ -81,5 +81,5 @@ const (
 // 命令复核
 
 const (
-	CommandConfirmURL = "/api/v1/assets/cmd-filter/command-confirm/"
+	CommandConfirmURL = "/api/v1/assets/cmd-filters/command-confirm/"
 )

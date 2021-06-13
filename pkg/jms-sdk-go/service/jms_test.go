@@ -9,11 +9,11 @@ import (
 
 func setup() *JMService {
 	/*
-	从环境变量获取 认证信息
-	CORE_HOST
-	access_key_id
-	access_key_secret
-	 */
+		从环境变量获取 认证信息
+		CORE_HOST
+		access_key_id
+		access_key_secret
+	*/
 	auth := httplib.SigAuth{
 		KeyID:    os.Getenv("access_key_id"),
 		SecretID: os.Getenv("access_key_secret"),
@@ -105,4 +105,13 @@ func TestJMService_ValidateRemoteApp(t *testing.T) {
 	info, err := jms.ValidateRemoteAppPermission(userId, remoteId, sysId)
 	t.Logf("%+v,%+v", info, err)
 
+}
+
+func TestJMService_SubmitCommandConfirm(t *testing.T) {
+	jms := setup()
+	sid := "8e7df6b6-795c-4904-bd17-f3bf2855ae9f"
+	ruleId := "0fd1112f-1c14-4457-bff8-62e21b1a64a2"
+	command := "ls"
+	res, err := jms.SubmitCommandConfirm(sid, ruleId, command)
+	t.Log(res, err)
 }
