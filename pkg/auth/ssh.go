@@ -17,6 +17,11 @@ type SSHAuthFunc func(ctx ssh.Context, password, publicKey string) (res sshd.Aut
 func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 	return func(ctx ssh.Context, password, publicKey string) (res sshd.AuthStatus) {
 		username := ctx.User()
+		if IsDirectUserFormat(username) {
+			directReq := ParseDirectUserFormat(username)
+			username = directReq.Username
+			ctx.SetValue(ContextKeyDirectLoginFormat, &directReq)
+		}
 		authMethod := "publickey"
 		action := actionAccepted
 		res = sshd.AuthFailed
@@ -71,6 +76,11 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 		return sshd.AuthFailed
 	}
 	username := ctx.User()
+	if IsDirectUserFormat(username) {
+		directReq := ParseDirectUserFormat(username)
+		username = directReq.Username
+		ctx.SetValue(ContextKeyDirectLoginFormat, &directReq)
+	}
 	remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
 	res = sshd.AuthFailed
 
@@ -148,4 +158,26 @@ const (
 	ContextKeyClient          = "CONTEXT_CLIENT"
 	ContextKeyConfirmRequired = "CONTEXT_CONFIRM_REQUIRED"
 	ContextKeyConfirmFailed   = "CONTEXT_CONFIRM_FAILED"
+
+	ContextKeyDirectLoginFormat = "CONTEXT_DIRECT_LOGIN_FORMAT"
 )
+
+func IsDirectUserFormat(s string) bool {
+	authInfos := strings.Split(s, "@")
+	return len(authInfos) == 3
+}
+
+func ParseDirectUserFormat(s string) DirectLoginAssetReq {
+	authInfos := strings.Split(s, "@")
+	return DirectLoginAssetReq{
+		Username:    authInfos[0],
+		SysUsername: authInfos[1],
+		AssetIP:     authInfos[2],
+	}
+}
+
+type DirectLoginAssetReq struct {
+	Username    string
+	SysUsername string
+	AssetIP     string
+}

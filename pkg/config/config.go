@@ -12,13 +12,13 @@ import (
 var CipherKey = "JumpServer Cipher Key for KoKo !"
 
 type Config struct {
-	Name                string `mapstructure:"NAME"`
-	CoreHost            string `mapstructure:"CORE_HOST"`
-	BootstrapToken      string `mapstructure:"BOOTSTRAP_TOKEN"`
-	BindHost            string `mapstructure:"BIND_HOST"`
-	SSHPort             string `mapstructure:"SSHD_PORT"`
-	HTTPPort            string `mapstructure:"HTTPD_PORT"`
-	SSHTimeout          int    `mapstructure:"SSH_TIMEOUT"`
+	Name           string `mapstructure:"NAME"`
+	CoreHost       string `mapstructure:"CORE_HOST"`
+	BootstrapToken string `mapstructure:"BOOTSTRAP_TOKEN"`
+	BindHost       string `mapstructure:"BIND_HOST"`
+	SSHPort        string `mapstructure:"SSHD_PORT"`
+	HTTPPort       string `mapstructure:"HTTPD_PORT"`
+	SSHTimeout     int    `mapstructure:"SSH_TIMEOUT"`
 
 	LogLevel            string `mapstructure:"LOG_LEVEL"`
 	RootPath            string `mapstructure:"ROOT_PATH"`
@@ -41,6 +41,7 @@ type Config struct {
 	RedisClusters []string `mapstructure:"REDIS_CLUSTERS"`
 
 	EnableLocalPortForward bool `mapstructure:"ENABLE_LOCAL_PORT_FORWARD"`
+	EnableVscodeSupport    bool `mapstructure:"ENABLE_VSCODE_SUPPORT"`
 
 	DataFolderPath    string
 	LogDirPath        string
@@ -207,6 +208,9 @@ func getDefaultConfig() Config {
 		RedisHost:           "127.0.0.1",
 		RedisPort:           "6379",
 		RedisPassword:       "",
+
+		EnableLocalPortForward: false,
+		EnableVscodeSupport:    false,
 	}
 
 }

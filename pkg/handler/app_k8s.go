@@ -14,7 +14,10 @@ import (
 )
 
 func (u *UserSelectHandler) retrieveRemoteK8s(reqParam model.PaginationParam) []map[string]interface{} {
-	res := u.h.jmsService.GetUserPermsK8s(u.user.ID, reqParam)
+	res, err := u.h.jmsService.GetUserPermsK8s(u.user.ID, reqParam)
+	if err != nil {
+		logger.Errorf("Ger user perm k8s failed: %s", err.Error())
+	}
 	return u.updateRemotePageData(reqParam, res)
 }
 
@@ -124,6 +127,7 @@ func (u *UserSelectHandler) proxyK8s(k8sApp model.K8sApplication) {
 	highestSystemUsers := selectHighestPrioritySystemUsers(systemUsers)
 	selectedSystemUser, ok := u.h.chooseSystemUser(highestSystemUsers)
 	if !ok {
+		logger.Infof("User %s don't select systemUser", u.user.Name)
 		return
 	}
 

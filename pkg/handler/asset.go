@@ -15,7 +15,10 @@ import (
 )
 
 func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) []map[string]interface{} {
-	res := u.h.jmsService.GetUserPermsAssets(u.user.ID, reqParam)
+	res, err := u.h.jmsService.GetUserPermsAssets(u.user.ID, reqParam)
+	if err != nil {
+		logger.Errorf("Ger user perm assets failed: %s", err.Error())
+	}
 	return u.updateRemotePageData(reqParam, res)
 }
 
@@ -61,12 +64,8 @@ func (u *UserSelectHandler) displayAssetResult(searchHeader string) {
 }
 
 func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
-	// todo: 资产展示排序方式
-
-	AssetListSortBy := "hostname"
-
-	//switch config.GetConf().AssetListSortBy {
-	switch AssetListSortBy {
+	assetListSortBy := u.h.terminalConf.AssetListSortBy
+	switch assetListSortBy {
 	case "ip":
 		sortedAsset := IPAssetList(u.currentResult)
 		sort.Sort(sortedAsset)

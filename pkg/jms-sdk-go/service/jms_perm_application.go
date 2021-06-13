@@ -2,35 +2,41 @@ package service
 
 import (
 	"fmt"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/logger"
 	"strconv"
 	"strings"
+
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
-func (s *JMService) GetAllUserPermMySQLs(userId string) []map[string]interface{} {
+func (s *JMService) GetAllUserPermMySQLs(userId string) ([]map[string]interface{}, error) {
 	var param model.PaginationParam
-	res := s.GetUserPermsMySQL(userId, param)
-	return res.Data
+	res, err := s.GetUserPermsMySQL(userId, param)
+	if err != nil {
+		return nil, err
+	}
+	return res.Data, err
 }
 
-func (s *JMService) GetAllUserPermK8s(userId string) []map[string]interface{} {
+func (s *JMService) GetAllUserPermK8s(userId string) ([]map[string]interface{}, error) {
 	var param model.PaginationParam
-	res := s.GetUserPermsK8s(userId, param)
-	return res.Data
+	res, err := s.GetUserPermsK8s(userId, param)
+	if err != nil {
+		return nil, err
+	}
+	return res.Data, err
 }
 
-func (s *JMService) GetUserPermsMySQL(userId string, param model.PaginationParam) model.PaginationResponse {
+func (s *JMService) GetUserPermsMySQL(userId string, param model.PaginationParam) (resp model.PaginationResponse, err error) {
 	reqUrl := fmt.Sprintf(UserPermsApplicationsURL, userId, model.AppTypeMySQL)
 	return s.getPaginationResult(reqUrl, param)
 }
 
-func (s *JMService) GetUserPermsK8s(userId string, param model.PaginationParam) model.PaginationResponse {
+func (s *JMService) GetUserPermsK8s(userId string, param model.PaginationParam) (resp model.PaginationResponse, err error) {
 	reqUrl := fmt.Sprintf(UserPermsApplicationsURL, userId, model.AppTypeK8s)
 	return s.getPaginationResult(reqUrl, param)
 }
 
-func (s *JMService) getPaginationResult(reqUrl string, param model.PaginationParam) (resp model.PaginationResponse) {
+func (s *JMService) getPaginationResult(reqUrl string, param model.PaginationParam) (resp model.PaginationResponse, err error) {
 	if param.PageSize < 0 {
 		param.PageSize = 0
 	}
@@ -49,7 +55,6 @@ func (s *JMService) getPaginationResult(reqUrl string, param model.PaginationPar
 		params["rebuild_tree"] = "1"
 	}
 	paramsArray = append(paramsArray, params)
-	var err error
 	if param.PageSize > 0 {
 		_, err = s.authClient.Get(reqUrl, &resp, paramsArray...)
 	} else {
@@ -57,9 +62,6 @@ func (s *JMService) getPaginationResult(reqUrl string, param model.PaginationPar
 		_, err = s.authClient.Get(reqUrl, &data, paramsArray...)
 		resp.Data = data
 		resp.Total = len(data)
-	}
-	if err != nil {
-		logger.Error("Get error: ", err)
 	}
 	return
 }

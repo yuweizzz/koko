@@ -26,7 +26,10 @@ func NewUserVolume(jmsService *service.JMService, user *model.User, addr, hostId
 	case "":
 		userSftp = srvconn.NewUserSftpConn(jmsService, user, addr)
 	default:
-		assets := jmsService.GetUserAssetByID(user.ID, hostId)
+		assets, err := jmsService.GetUserAssetByID(user.ID, hostId)
+		if err != nil {
+			logger.Errorf("Get user asset failed: %s", err)
+		}
 		if len(assets) == 1 {
 			folderName := assets[0].Hostname
 			if strings.Contains(folderName, "/") {

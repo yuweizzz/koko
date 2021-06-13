@@ -20,33 +20,15 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-//func SessionHandler(sess ssh.Session) {
-//	user, ok := sess.Context().Value(auth.ContextKeyUser).(*model.User)
-//	if !ok || user.ID == "" {
-//		logger.Errorf("SSH User %s not found, exit.", sess.User())
-//		return
-//	}
-//	pty, winChan, ok := sess.Pty()
-//	if ok {
-//		handler := NewInteractiveHandler(sess, user)
-//		logger.Infof("Request %s: User %s request pty %s", handler.sess.ID(), sess.User(), pty.Term)
-//		go handler.WatchWinSizeChange(winChan)
-//		handler.Dispatch()
-//	} else {
-//		utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
-//		return
-//	}
-//}
-
-func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *service.JMService) *InteractiveHandler {
+func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *service.JMService, termConfig model.TerminalConfig) *InteractiveHandler {
 	wrapperSess := NewWrapperSession(sess)
 	term := utils.NewTerminal(wrapperSess, "Opt> ")
 	handler := &InteractiveHandler{
-		sess: wrapperSess,
-		user: user,
-		term: term,
-
-		jmsService: jmsService,
+		sess:         wrapperSess,
+		user:         user,
+		term:         term,
+		jmsService:   jmsService,
+		terminalConf: &termConfig,
 	}
 	handler.Initial()
 	return handler
@@ -66,6 +48,8 @@ type InteractiveHandler struct {
 	wg sync.WaitGroup
 
 	jmsService *service.JMService
+
+	terminalConf *model.TerminalConfig
 }
 
 func (h *InteractiveHandler) Initial() {
@@ -82,7 +66,10 @@ func (h *InteractiveHandler) Initial() {
 	}
 	switch h.assetLoadPolicy {
 	case "all":
-		allAssets := h.jmsService.GetAllUserPermsAssets(h.user.ID)
+		allAssets, err := h.jmsService.GetAllUserPermsAssets(h.user.ID)
+		if err != nil {
+			logger.Errorf("Get all user perms assets failed: %s", err)
+		}
 		h.selectHandler.SetAllLocalData(allAssets)
 	}
 	h.firstLoadData()
@@ -99,7 +86,7 @@ func (h *InteractiveHandler) firstLoadData() {
 
 func (h *InteractiveHandler) displayBanner() {
 	h.term.SetPrompt("Opt> ")
-	displayBanner(h.sess, h.user.Name)
+	displayBanner(h.sess, h.user.Name, h.terminalConf)
 }
 
 func (h *InteractiveHandler) WatchWinSizeChange(winChan <-chan ssh.Window) {
@@ -215,14 +202,29 @@ func (h *InteractiveHandler) refreshAssetsAndNodesData() {
 	h.wg.Add(2)
 	go func() {
 		defer h.wg.Done()
-		allAssets := h.jmsService.RefreshUserAllPermsAssets(h.user.ID)
+		allAssets, err := h.jmsService.RefreshUserAllPermsAssets(h.user.ID)
+		if err != nil {
+			logger.Errorf("Refresh user all perms assets error: %s", err)
+			return
+		}
 		if h.assetLoadPolicy == "all" {
 			h.selectHandler.SetAllLocalData(allAssets)
 		}
 	}()
 	go func() {
 		defer h.wg.Done()
-		h.nodes = h.jmsService.RefreshUserNodes(h.user.ID)
+		nodes, err := h.jmsService.RefreshUserNodes(h.user.ID)
+		if err != nil {
+			logger.Errorf("Refresh user nodes error: %s", err)
+			return
+		}
+		h.nodes = nodes
+		config, err := h.jmsService.GetTerminalConfig()
+		if err != nil {
+			logger.Errorf("Refresh user terminal config error: %s", err)
+			return
+		}
+		h.terminalConf = &config
 	}()
 	h.wg.Wait()
 	_, err := io.WriteString(h.term, i18n.T("Refresh done")+"\n\r")
@@ -232,7 +234,12 @@ func (h *InteractiveHandler) refreshAssetsAndNodesData() {
 }
 
 func (h *InteractiveHandler) loadUserNodes() {
-	h.nodes = h.jmsService.GetUserNodes(h.user.ID)
+	nodes, err := h.jmsService.GetUserNodes(h.user.ID)
+	if err != nil {
+		logger.Errorf("Get user nodes error: %s", err)
+		return
+	}
+	h.nodes = nodes
 }
 
 func ConstructNodeTree(assetNodes []model.Node) treeprint.Tree {
@@ -283,18 +290,15 @@ func selectHighestPrioritySystemUsers(systemUsers []model.SystemUser) []model.Sy
 	return result
 }
 
-func getPageSize(term *utils.Terminal) int {
+func getPageSize(term *utils.Terminal, termConf *model.TerminalConfig) int {
 	var (
 		pageSize  int
 		minHeight = 8 // 分页显示的最小高度
 
 	)
 	_, height := term.GetSize()
-	// Todo: 分页方式
-	//conf := config.GetConf()
-	//switch conf.AssetListPageSize {
 
-	AssetListPageSize := "auto"
+	AssetListPageSize := termConf.AssetListPageSize
 	switch AssetListPageSize {
 	case "auto":
 		pageSize = height - minHeight

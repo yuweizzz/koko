@@ -90,6 +90,8 @@ func NewApplication(jmsService *service.JMService) *Application {
 	app := Application{
 		terminalConf: &terminalConf,
 		jmsService:   jmsService,
+
+		vscodeClients: make(map[string]*vscodeReq),
 	}
 	go app.run()
 	return &app

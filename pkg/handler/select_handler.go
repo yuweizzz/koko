@@ -123,7 +123,7 @@ func (u *UserSelectHandler) SetLoadPolicy(policy dataSource) {
 func (u *UserSelectHandler) MoveNextPage() {
 	if u.HasNext() {
 		offset := u.CurrentOffSet()
-		newPageSize := getPageSize(u.h.term)
+		newPageSize := getPageSize(u.h.term, u.h.terminalConf)
 		u.currentResult = u.Retrieve(newPageSize, offset, u.searchKeys...)
 	}
 	u.DisplayCurrentResult()
@@ -132,7 +132,7 @@ func (u *UserSelectHandler) MoveNextPage() {
 func (u *UserSelectHandler) MovePrePage() {
 	if u.HasPrev() {
 		offset := u.CurrentOffSet()
-		newPageSize := getPageSize(u.h.term)
+		newPageSize := getPageSize(u.h.term, u.h.terminalConf)
 		start := offset - newPageSize*2
 		if start <= 0 {
 			start = 0
@@ -143,7 +143,7 @@ func (u *UserSelectHandler) MovePrePage() {
 }
 
 func (u *UserSelectHandler) Search(key string) {
-	newPageSize := getPageSize(u.h.term)
+	newPageSize := getPageSize(u.h.term, u.h.terminalConf)
 	u.currentResult = u.Retrieve(newPageSize, 0, key)
 	u.searchKeys = []string{key}
 	u.DisplayCurrentResult()
@@ -151,7 +151,7 @@ func (u *UserSelectHandler) Search(key string) {
 
 func (u *UserSelectHandler) SearchAgain(key string) {
 	u.searchKeys = append(u.searchKeys, key)
-	newPageSize := getPageSize(u.h.term)
+	newPageSize := getPageSize(u.h.term, u.h.terminalConf)
 	u.currentResult = u.Retrieve(newPageSize, 0, u.searchKeys...)
 	u.DisplayCurrentResult()
 }
@@ -164,7 +164,7 @@ func (u *UserSelectHandler) SearchOrProxy(key string) {
 		}
 	}
 
-	newPageSize := getPageSize(u.h.term)
+	newPageSize := getPageSize(u.h.term, u.h.terminalConf)
 	currentResult := u.Retrieve(newPageSize, 0, key)
 	u.currentResult = currentResult
 	u.searchKeys = []string{key}

@@ -215,7 +215,9 @@ func (s *SSHClient) Close() error {
 	if s.ProxyClient != nil {
 		_ = s.ProxyClient.Close()
 	}
-	return s.Client.Close()
+	err := s.Client.Close()
+	logger.Infof("SSHClient(%s) close", s)
+	return err
 }
 
 func (s *SSHClient) RefCount() int {

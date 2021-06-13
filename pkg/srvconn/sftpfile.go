@@ -788,16 +788,6 @@ func (ad *AssetDir) getCacheSftpConn(su *model.SystemUser) (*SftpConn, bool) {
 }
 
 func (ad *AssetDir) getNewSftpConn(su *model.SystemUser) (conn *SftpConn, err error) {
-	//sshClient, err := NewClient(ad.user, ad.asset, su, ad.Overtime, ad.reuse)
-	//if err != nil {
-	//	logger.Errorf("Get new SSH client err: %s", err)
-	//	return nil, err
-	//}
-	//sftpClient, err := sshClient.NewSFTPClient()
-	//if err != nil {
-	//	logger.Errorf("SSH client %p start sftp client session err %s", sshClient, err)
-	//	return nil, err
-	//}
 	key := MakeReuseSSHClientKey(ad.user.ID, ad.asset.ID, su.ID, su.Username)
 	timeout := config.GlobalConfig.SSHTimeout
 
@@ -853,6 +843,10 @@ func (ad *AssetDir) getNewSftpConn(su *model.SystemUser) (conn *SftpConn, err er
 		_ = sess.Close()
 		return nil, err
 	}
+	go func() {
+		_ = sess.Wait()
+		sshClient.ReleaseSession(sess)
+	}()
 	HomeDirPath, err := sftpClient.Getwd()
 	if err != nil {
 		logger.Errorf("SSH client sftp (%s) get home dir err %s", sshClient, err)

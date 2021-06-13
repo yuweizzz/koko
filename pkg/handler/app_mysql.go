@@ -14,7 +14,10 @@ import (
 )
 
 func (u *UserSelectHandler) retrieveRemoteMySQL(reqParam model.PaginationParam) []map[string]interface{} {
-	res := u.h.jmsService.GetUserPermsMySQL(u.user.ID, reqParam)
+	res, err := u.h.jmsService.GetUserPermsMySQL(u.user.ID, reqParam)
+	if err != nil {
+		logger.Errorf("Ger user perm MySQL failed: %s", err)
+	}
 	return u.updateRemotePageData(reqParam, res)
 }
 
@@ -133,18 +136,9 @@ func (u *UserSelectHandler) proxyMySQL(dbApp model.DatabaseApplication) {
 	highestSystemUsers := selectHighestPrioritySystemUsers(systemUsers)
 	selectedSystemUser, ok := u.h.chooseSystemUser(highestSystemUsers)
 	if !ok {
+		logger.Infof("User %s don't select systemUser", u.user.Name)
 		return
 	}
-	//p := proxy.DBProxyServer{
-	//	UserConn:   u.h.sess,
-	//	User:       u.h.user,
-	//	Database:   &dbApp,
-	//	SystemUser: &selectedSystemUser,
-	//}
-	//u.h.pauseWatchWinSize()
-	//p.Proxy()
-	//u.h.resumeWatchWinSize()
-
 	srv, err := proxy.NewServer(u.h.sess, u.h.jmsService,
 		proxy.ConnectProtocolType(srvconn.ProtocolMySQL),
 		proxy.ConnectDBApp(&dbApp),
