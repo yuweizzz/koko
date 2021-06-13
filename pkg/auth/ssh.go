@@ -43,7 +43,7 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 				UserClient:  userClient,
 				authOptions: make(map[string]authOptions),
 			}
-			ctx.SetValue(ContextKeyClient, userClient)
+			ctx.SetValue(ContextKeyClient, userAuthClient)
 		}
 		userAuthClient.SetOption(service.UserClientPassword(password),
 			service.UserClientPublicKey(publicKey))
