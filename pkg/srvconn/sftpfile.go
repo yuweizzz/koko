@@ -843,10 +843,11 @@ func (ad *AssetDir) getNewSftpConn(su *model.SystemUser) (conn *SftpConn, err er
 	if err != nil {
 		logger.Errorf("SSH client(%s) start sftp conn err %s", sshClient, err)
 		_ = sess.Close()
+		sshClient.ReleaseSession(sess)
 		return nil, err
 	}
 	go func() {
-		_ = sess.Wait()
+		_ = sftpClient.Wait()
 		sshClient.ReleaseSession(sess)
 	}()
 	HomeDirPath, err := sftpClient.Getwd()
@@ -855,7 +856,7 @@ func (ad *AssetDir) getNewSftpConn(su *model.SystemUser) (conn *SftpConn, err er
 		_ = sftpClient.Close()
 		return nil, err
 	}
-	logger.Infof("SSH client %p start sftp client session success", sshClient)
+	logger.Infof("SSH client %s start sftp client session success", sshClient)
 	conn = &SftpConn{client: sftpClient, HomeDirPath: HomeDirPath}
 	return conn, err
 }

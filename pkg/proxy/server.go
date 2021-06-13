@@ -293,6 +293,9 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	}
 
 	if !expireInfo.HasPermission {
+		msg := i18n.T("You don't have permission login %s")
+		msg = utils.WrapperWarn(fmt.Sprintf(msg, connOpts.TerminalTitle()))
+		utils.IgnoreErrWriteString(conn, msg)
 		return nil, ErrPermission
 	}
 
@@ -852,14 +855,18 @@ func (s *Server) Proxy() {
 		case srvconn.ProtocolMySQL, srvconn.ProtocolK8s:
 			dGateway, err := s.createAvailableGateWay(s.domainGateways)
 			if err != nil {
-				logger.Error(err)
-				utils.IgnoreErrWriteString(s.UserConn, err.Error())
+				msg := i18n.T("Start domain gateway failed %s")
+				msg = fmt.Sprintf(msg, err)
+				utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
+				logger.Error(msg)
 				return
 			}
 			err = dGateway.Start()
 			if err != nil {
-				logger.Error(err)
-				utils.IgnoreErrWriteString(s.UserConn, err.Error())
+				msg := i18n.T("Start domain gateway failed %s")
+				msg = fmt.Sprintf(msg, err)
+				utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
+				logger.Error(msg)
 				return
 			}
 			defer dGateway.Stop()

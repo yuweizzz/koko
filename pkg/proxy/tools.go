@@ -20,6 +20,8 @@ const (
 	NoRouteErr        = "No route to host" //
 
 	LoginFailed = "failed login" // telnet 连接失败
+
+	networkUnreachable = "network is unreachable"
 )
 
 func ConvertErrorToReadableMsg(e error) string {
@@ -38,6 +40,9 @@ func ConvertErrorToReadableMsg(e error) string {
 	}
 	if strings.Contains(errMsg, NoRouteErr) {
 		return i18n.T("No route to host")
+	}
+	if strings.Contains(errMsg, networkUnreachable) {
+		return i18n.T("network is unreachable")
 	}
 	return errMsg
 }
