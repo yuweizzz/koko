@@ -20,8 +20,8 @@ type Config struct {
 	HTTPPort       string `mapstructure:"HTTPD_PORT"`
 	SSHTimeout     int    `mapstructure:"SSH_TIMEOUT"`
 
-	LogLevel            string `mapstructure:"LOG_LEVEL"`
-	RootPath            string `mapstructure:"ROOT_PATH"`
+	LogLevel string `mapstructure:"LOG_LEVEL"`
+
 	Comment             string `mapstructure:"COMMENT"`
 	LanguageCode        string `mapstructure:"LANGUAGE_CODE"`
 	UploadFailedReplay  bool   `mapstructure:"UPLOAD_FAILED_REPLAY_ON_START"`
@@ -43,6 +43,7 @@ type Config struct {
 	EnableLocalPortForward bool `mapstructure:"ENABLE_LOCAL_PORT_FORWARD"`
 	EnableVscodeSupport    bool `mapstructure:"ENABLE_VSCODE_SUPPORT"`
 
+	RootPath          string
 	DataFolderPath    string
 	LogDirPath        string
 	KeyFolderPath     string
@@ -55,90 +56,6 @@ func (c *Config) EnsureConfigValid() {
 		c.LanguageCode = "zh"
 	}
 }
-
-//func (c *Config) LoadFromYAML(body []byte) error {
-//	err := yaml.Unmarshal(body, c)
-//	if err != nil {
-//		log.Printf("Load yaml error: %v", err)
-//	}
-//	return err
-//}
-//
-//func (c *Config) LoadFromYAMLPath(filepath string) error {
-//	body, err := ioutil.ReadFile(filepath)
-//	if err != nil {
-//		log.Printf("Not found file: %s", filepath)
-//		return err
-//	}
-//	return c.LoadFromYAML(body)
-//}
-//
-//func (c *Config) LoadFromJSON(body []byte) error {
-//	err := json.Unmarshal(body, c)
-//	if err != nil {
-//		log.Printf("Config load yaml error")
-//	}
-//	return nil
-//}
-
-//func (c *Config) LoadFromEnv() error {
-//	envMap := make(map[string]string)
-//	env := os.Environ()
-//	for _, v := range env {
-//		vSlice := strings.SplitN(v, "=", 1)
-//		key := vSlice[0]
-//		value := vSlice[1]
-//		// 环境变量的值，非字符串类型的解析，需要另作处理
-//		switch key {
-//		case "SFTP_SHOW_HIDDEN_FILE", "REUSE_CONNECTION", "UPLOAD_FAILED_REPLAY_ON_START":
-//			switch strings.ToLower(value) {
-//			case "true", "on":
-//				switch key {
-//				case "SFTP_SHOW_HIDDEN_FILE":
-//					c.ShowHiddenFile = true
-//				case "REUSE_CONNECTION":
-//					c.ReuseConnection = true
-//				case "UPLOAD_FAILED_REPLAY_ON_START":
-//					c.UploadFailedReplay = true
-//				}
-//			case "false", "off":
-//				switch key {
-//				case "SFTP_SHOW_HIDDEN_FILE":
-//					c.ShowHiddenFile = false
-//				case "REUSE_CONNECTION":
-//					c.ReuseConnection = false
-//				case "UPLOAD_FAILED_REPLAY_ON_START":
-//					c.UploadFailedReplay = false
-//				}
-//			}
-//		case "SSH_TIMEOUT":
-//			if num, err := strconv.Atoi(value); err == nil {
-//				c.SSHTimeout = time.Duration(num)
-//			}
-//		case "REDIS_CLUSTERS":
-//			clusters := strings.Split(value, ",")
-//			c.RedisClusters = clusters
-//		default:
-//			envMap[key] = value
-//		}
-//	}
-//	envYAML, err := yaml.Marshal(&envMap)
-//	if err != nil {
-//		log.Fatalf("Error occur: %v", err)
-//	}
-//	return c.LoadFromYAML(envYAML)
-//}
-
-//func (c *Config) Load(filepath string) error {
-//	var err error
-//	log.Print("Config Load from env first")
-//	_ = c.LoadFromEnv()
-//	if _, err = os.Stat(filepath); err == nil {
-//		log.Printf("Config reload from file: %s", filepath)
-//		return c.LoadFromYAMLPath(filepath)
-//	}
-//	return nil
-//}
 
 func GetConf() Config {
 	return *GlobalConfig
