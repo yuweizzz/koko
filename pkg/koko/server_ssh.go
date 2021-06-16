@@ -9,6 +9,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
@@ -229,6 +230,17 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		logger.Errorf("Get system user auth failed: %s", err)
 		return
 	}
+	permInfo, err := s.jmsService.ValidateAssetConnectPermission(user.ID,
+		asset.ID, systemUser.ID)
+	if err != nil {
+		logger.Errorf("Get asset Permission info err: %s", err)
+		return
+	}
+	if !permInfo.HasPermission {
+		utils.IgnoreErrWriteString(sess, "You don't have permission login")
+		logger.Errorf("User %s has no permission login asset %s", user, asset.Hostname)
+		return
+	}
 	var domainGateways *model.Domain
 	if asset.Domain != "" {
 		domainInfo, err := s.jmsService.GetDomainGateways(asset.Domain)
@@ -286,6 +298,7 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		return
 	}
 	defer goSess.Close()
+	defer sshClient.ReleaseSession(goSess)
 	switch VscodePlatform(asset.Platform) {
 	case Linux:
 		if err = s.proxyVscodeForLinux(sess, goSess); err != nil {
@@ -306,13 +319,24 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		user:   user,
 		client: sshClient,
 	}
+	logger.Infof("SSH conn[%s] User %s start vscode request to %s", ctxId, user, sshClient)
 	s.addVSCodeReq(vsReq)
 	defer s.deleteVSCodeReq(vsReq)
-	<-sess.Context().Done()
-	logger.Infof("User %s start vscode request to %s", user, sshClient)
-	sshClient.ReleaseSession(goSess)
-
-	logger.Infof("User %s end vscode request %s", user, sshClient)
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-sess.Context().Done():
+			logger.Infof("SSH conn[%s] User %s end vscode request %s as session done", ctxId, user, sshClient)
+		case now := <-ticker.C:
+			if permInfo.IsExpired(now) {
+				logger.Infof("SSH conn[%s] User %s end vscode request %s as permission has expired",
+					ctxId, user, sshClient)
+				return
+			}
+			logger.Debugf("SSH conn[%s] user %s vscode request still alive", ctxId, user)
+		}
+	}
 }
 
 func (s *server) proxyVscodeForLinux(sess ssh.Session, goSess *gossh.Session, ) error {
@@ -358,9 +382,9 @@ func (s *server) proxyVscodeForWin(sess ssh.Session, goSess *gossh.Session) erro
 
 func VscodePlatform(platform string) string {
 	lowerPlatform := strings.ToLower(platform)
-	for i := range allSupportPlatform {
-		if strings.HasPrefix(lowerPlatform, allSupportPlatform[i]) {
-			return allSupportPlatform[i]
+	for i := range supportedVscodePlatforms {
+		if strings.HasPrefix(lowerPlatform, supportedVscodePlatforms[i]) {
+			return supportedVscodePlatforms[i]
 		}
 	}
 	return Unknown
@@ -374,5 +398,5 @@ const (
 )
 
 var (
-	allSupportPlatform = []string{Linux, Windows}
+	supportedVscodePlatforms = []string{Linux, Windows}
 )
