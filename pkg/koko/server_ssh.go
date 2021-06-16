@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"strings"
 
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
@@ -285,22 +286,21 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		return
 	}
 	defer goSess.Close()
-	stdOut, err := goSess.StdoutPipe()
-	if err != nil {
-		logger.Errorf("Get SSH session StdoutPipe failed: %s", err)
+	switch VscodePlatform(asset.Platform) {
+	case Linux:
+		if err = s.proxyVscodeForLinux(sess, goSess); err != nil {
+			logger.Errorf("User %s start linux platform vscode request failed: %s", user, err)
+			return
+		}
+	case Windows:
+		if err = s.proxyVscodeForWin(sess, goSess); err != nil {
+			logger.Errorf("User %s start windows platform vscode request failed: %s", user, err)
+			return
+		}
+	default:
+		logger.Errorf("User %s start vscode with unsupported type: %s", user, asset.Platform)
 		return
 	}
-	stdin, err := goSess.StdinPipe()
-	if err != nil {
-		logger.Errorf("Get SSH session StdinPipe failed: %s", err)
-		return
-	}
-	err = goSess.Shell()
-	if err != nil {
-		logger.Errorf("Get SSH session shell failed: %s", err)
-		return
-	}
-	logger.Infof("User %s start vscode request to %s", user, sshClient)
 	vsReq := &vscodeReq{
 		reqId:  ctxId,
 		user:   user,
@@ -308,6 +308,29 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 	}
 	s.addVSCodeReq(vsReq)
 	defer s.deleteVSCodeReq(vsReq)
+	<-sess.Context().Done()
+	logger.Infof("User %s start vscode request to %s", user, sshClient)
+	sshClient.ReleaseSession(goSess)
+
+	logger.Infof("User %s end vscode request %s", user, sshClient)
+}
+
+func (s *server) proxyVscodeForLinux(sess ssh.Session, goSess *gossh.Session, ) error {
+	stdOut, err := goSess.StdoutPipe()
+	if err != nil {
+		logger.Errorf("Get SSH session StdoutPipe failed: %s", err)
+		return err
+	}
+	stdin, err := goSess.StdinPipe()
+	if err != nil {
+		logger.Errorf("Get SSH session StdinPipe failed: %s", err)
+		return err
+	}
+	err = goSess.Shell()
+	if err != nil {
+		logger.Errorf("Get SSH session shell failed: %s", err)
+		return err
+	}
 	go func() {
 		defer goSess.Close()
 		defer sess.Close()
@@ -318,8 +341,38 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		defer sess.Close()
 		_, _ = io.Copy(sess, stdOut)
 	}()
-	<-sess.Context().Done()
-	sshClient.ReleaseSession(goSess)
-
-	logger.Infof("User %s end vscode request %s", user, sshClient)
+	return nil
 }
+
+func (s *server) proxyVscodeForWin(sess ssh.Session, goSess *gossh.Session) error {
+	goSess.Stdin = sess
+	goSess.Stdout = sess
+	rawCommand := sess.RawCommand()
+	err := goSess.Start(rawCommand)
+	if err != nil {
+		logger.Errorf("start SSH start exec %s failed: %s", rawCommand, err)
+		return err
+	}
+	return nil
+}
+
+func VscodePlatform(platform string) string {
+	lowerPlatform := strings.ToLower(platform)
+	for i := range allSupportPlatform {
+		if strings.HasPrefix(lowerPlatform, allSupportPlatform[i]) {
+			return allSupportPlatform[i]
+		}
+	}
+	return Unknown
+}
+
+const (
+	Unknown = "unknown"
+	Linux   = "linux"
+	Windows = "windows"
+	Mac     = "mac"
+)
+
+var (
+	allSupportPlatform = []string{Linux, Windows}
+)
