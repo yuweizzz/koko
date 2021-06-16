@@ -328,6 +328,7 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		select {
 		case <-sess.Context().Done():
 			logger.Infof("SSH conn[%s] User %s end vscode request %s as session done", ctxId, user, sshClient)
+			return
 		case now := <-ticker.C:
 			if permInfo.IsExpired(now) {
 				logger.Infof("SSH conn[%s] User %s end vscode request %s as permission has expired",
