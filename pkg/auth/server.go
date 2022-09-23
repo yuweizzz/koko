@@ -27,7 +27,12 @@ const (
 )
 
 func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult) {
-	username := ctx.User()
+	mixin := ctx.User()
+	username, system_user, asset_ip := splitUsername(mixin)
+	if system_user != "" {
+		ctx.SetValue(model.ContextKeySystemUser, &system_user)
+		ctx.SetValue(model.ContextKeyAssetIP, &asset_ip)
+	}
 	authMethod := "publickey"
 	action := actionAccepted
 	res = ssh.AuthFailed
@@ -52,6 +57,7 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 	case service.AuthSuccess:
 		res = ssh.AuthSuccessful
 		ctx.SetValue(model.ContextKeyUser, &user)
+		ctx.SetValue(model.ContextKeyCtxID, ctx.SessionID())
 	case service.AuthConfirmRequired:
 		required := true
 		ctx.SetValue(model.ContextKeyConfirmRequired, &required)
@@ -64,6 +70,20 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 		action, authMethod, username, remoteAddr)
 	return
 
+}
+
+func splitUsername(mixin string) (login_user string, system_user string, asset_ip string) {
+	list := strings.Split(mixin, "#")
+	if len(list) == 1 {
+		login_user = list[0]
+		system_user = ""
+		asset_ip = ""
+	} else {
+		login_user = list[0]
+		system_user = list[1]
+		asset_ip = list[2]
+	}
+	return
 }
 
 func CheckUserPassword(ctx ssh.Context, password string) ssh.AuthResult {

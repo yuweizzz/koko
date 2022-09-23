@@ -8,7 +8,11 @@ const (
 	ContextKeyClient
 	ContextKeyConfirmRequired
 	ContextKeyConfirmFailed
+	ContextKeySystemUser
+	ContextKeyAssetIP
 )
+
+const ContextKeyCtxID = ""
 
 const (
 	HighRiskFlag = "1"
