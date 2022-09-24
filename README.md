@@ -4,6 +4,11 @@
 Koko 是 Go 版本的 coco；重构了 coco 的 SSH/SFTP 服务和 Web Terminal 服务
 
 
+## 移植 vscode 代理功能到 v2.7
+
+将上游支持 vscode 代理的新特性移植到旧版本的 Koko 中，满足使用日常需求。
+
+
 ## 主要功能
 
 
