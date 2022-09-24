@@ -8,6 +8,14 @@ Koko 是 Go 版本的 coco；重构了 coco 的 SSH/SFTP 服务和 Web Terminal 
 
 将上游支持 vscode 代理的新特性移植到旧版本的 Koko 中，满足使用日常需求。
 
+沿用了上游的做法，可以通过新增如下 vscode config 来支持 vscode 直连资产：
+
+```
+Host JMP
+  HostName <koko_ssh_ip>
+  User <jmp_login_user>#<permed_asset_user>#<asset_ip>
+  Port <koko_ssh_port>
+```
 
 ## 主要功能
 
