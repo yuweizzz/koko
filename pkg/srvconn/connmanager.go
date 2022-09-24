@@ -57,6 +57,12 @@ type sshClient struct {
 	config *SSHClientConfig
 }
 
+func (s *sshClient) Getclient() *gossh.Client {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.client
+}
+
 func (s *sshClient) RefCount() int {
 	if s.isClosed() {
 		return 0
@@ -264,6 +270,7 @@ func (sc *SSHClientConfig) Dial() (client *gossh.Client, err error) {
 		client = gossh.NewClient(proxyConn, chans, reqs)
 	} else {
 		logger.Debugf("Dial host %s:%s", sc.Host, sc.Port)
+		logger.Debugf("ssh Pri: %s", cfg.Auth)
 		client, err = gossh.Dial("tcp", net.JoinHostPort(sc.Host, sc.Port), cfg)
 		if err != nil {
 			return
@@ -304,6 +311,8 @@ func MakeConfig(asset *model.Asset, systemUser *model.SystemUser, timeout time.D
 		Timeout:    timeout,
 		Proxy:      proxyConfigs,
 	}
+	logger.Debugf("SSHClientConfig info: %s, Port: %s, User: %s, Password: %s, PrivateKey: %s",
+		conf.Host, conf.Port, conf.User, conf.Password, conf.PrivateKey)
 	return
 }
 

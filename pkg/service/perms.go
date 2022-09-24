@@ -19,6 +19,15 @@ func GetUserAssetByID(userID, assertID string) (assets []model.Asset) {
 	return
 }
 
+func GetUserPermAssetsByIP(userID, assetIP string) (res model.AssetList, err error) {
+	params := map[string]string{
+		"ip": assetIP,
+	}
+	reqUrl := fmt.Sprintf(UserPermsAssetsURL, userID)
+	_, err = authClient.Get(reqUrl, &res, params)
+	return
+}
+
 func GetUserNodes(userId string) (nodes model.NodeList) {
 	Url := fmt.Sprintf(UserPermsNodesListURL, userId)
 	_, err := authClient.Get(Url, &nodes)
