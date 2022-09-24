@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	gossh "golang.org/x/crypto/ssh"
 	"github.com/gliderlabs/ssh"
 	"github.com/xlab/treeprint"
 
@@ -18,7 +19,10 @@ import (
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/utils"
+	"github.com/jumpserver/koko/pkg/srvconn"
 )
+
+var clients = make(map[string]*gossh.Client)
 
 func SessionHandler(sess ssh.Session) {
 	user, ok := sess.Context().Value(model.ContextKeyUser).(*model.User)
@@ -26,14 +30,58 @@ func SessionHandler(sess ssh.Session) {
 		logger.Errorf("SSH User %s not found, exit.", sess.User())
 		return
 	}
-	pty, _, ok := sess.Pty()
-	if ok {
-		handler := newInteractiveHandler(sess, user)
-		logger.Infof("Request %s: User %s request pty %s", handler.sess.ID(), sess.User(), pty.Term)
-		go handler.watchWinSizeChange()
-		handler.Dispatch()
+	system_user := sess.Context().Value(model.ContextKeySystemUser)
+	if system_user == nil {
+		if pty, _, ok := sess.Pty(); ok {
+			handler := newInteractiveHandler(sess, user)
+			logger.Infof("Request %s: User %s request pty %s", handler.sess.ID(), sess.User(), pty.Term)
+			go handler.watchWinSizeChange()
+			handler.Dispatch()
+		} else {
+			utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
+			return
+		}
 	} else {
-		utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
+		system_user := sess.Context().Value(model.ContextKeySystemUser).(*string)
+		asset_ip := sess.Context().Value(model.ContextKeyAssetIP).(*string)
+		selectedAssets, err := service.GetUserPermAssetsByIP(user.ID, *asset_ip)
+		if err != nil {
+			logger.Error(err)
+			utils.IgnoreErrWriteString(sess, err.Error())
+			return
+		}
+		if len(selectedAssets) != 1 {
+			msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), asset_ip)
+			utils.IgnoreErrWriteString(sess, msg)
+			logger.Error(msg)
+			return
+		}
+		selectSysUsers := service.GetUserAssetSystemUsers(user.ID, selectedAssets[0].ID)
+		matched := make([]model.SystemUser, 0, len(selectSysUsers))
+		for i := range selectSysUsers {
+			if selectSysUsers[i].Username == *system_user {
+				matched = append(matched, selectSysUsers[i])
+			}
+		}
+		if len(matched) != 1 {
+			msg := fmt.Sprintf(i18n.T("Must be unique system user for %s"), *system_user)
+			utils.IgnoreErrWriteString(sess, msg)
+			logger.Error(msg)
+			return
+		}
+		endSystemUser := selectSysUsers[0]
+		endAsset := selectedAssets[0]
+		var info model.SystemUserAuthInfo
+		if endSystemUser.UsernameSameWithUser {
+			endSystemUser.Username = user.Username
+			info = service.GetUserAssetAuthInfo(endSystemUser.ID, endAsset.ID, user.ID, user.Username)
+		} else {
+			info = service.GetSystemUserAssetAuthInfo(endSystemUser.ID, endAsset.ID)
+		}
+		endSystemUser.Password = info.Password
+		endSystemUser.PrivateKey = info.PrivateKey
+
+		proxyVscode(sess, user, endAsset, endSystemUser)
 		return
 	}
 }
@@ -329,4 +377,80 @@ func getPageSize(term *utils.Terminal) int {
 		pageSize = 1
 	}
 	return pageSize
+}
+
+func proxyVscode(sess ssh.Session, user *model.User, asset model.Asset, systemUser model.SystemUser) {
+	var timeout time.Duration = 10 * time.Minute
+	sshClient, err := srvconn.NewClient(user, &asset, &systemUser, timeout, true)
+	ctx := sess.Context().Value(model.ContextKeyCtxID).(string)
+	clients[ctx] = sshClient.Getclient()
+	defer delete(clients, ctx)
+	if err != nil {
+		logger.Errorf("Get SSH Client failed: %s", err)
+		return
+	}
+	defer sshClient.Close()
+	goSess, err := sshClient.NewSession()
+	if err != nil {
+		logger.Errorf("Get SSH session failed: %s", err)
+		return
+	}
+	defer goSess.Close()
+	stdOut, err := goSess.StdoutPipe()
+	if err != nil {
+		logger.Errorf("Get SSH session StdoutPipe failed: %s", err)
+		return
+	}
+	stdin, err := goSess.StdinPipe()
+	if err != nil {
+		logger.Errorf("Get SSH session StdinPipe failed: %s", err)
+		return
+	}
+	err = goSess.Shell()
+	if err != nil {
+		logger.Errorf("Get SSH session shell failed: %s", err)
+		return
+	}
+	logger.Infof("User %s start vscode request to %s", user.Name, sshClient)
+	go func() {
+		io.Copy(stdin, sess)
+		logger.Infof("User %s vscode request %s stdin end", user.Name, sshClient)
+	}()
+	go func() {
+		io.Copy(sess, stdOut)
+		logger.Infof("User %s vscode request %s stdout end", user.Name, sshClient)
+	}()
+	<-sess.Context().Done()
+	sshClient.Close()
+	logger.Infof("User %s end vscode request %s", user.Name, sshClient)
+}
+
+func DirectTCPIPChannelHandler(ctx ssh.Context, newChan gossh.NewChannel, destAddr string) {
+	ctxid := ctx.Value(model.ContextKeyCtxID).(string)
+	system_user := ctx.Value(model.ContextKeySystemUser).(*string)
+	asset_ip := ctx.Value(model.ContextKeyAssetIP).(*string)
+	user := ctx.Value(model.ContextKeyUser).(*model.User)
+	client := clients[ctxid]
+	dConn, err := client.Dial("tcp", destAddr)
+	if err != nil {
+		newChan.Reject(gossh.ConnectionFailed, err.Error())
+		return
+	}
+	defer dConn.Close()
+	ch, reqs, err := newChan.Accept()
+	if err != nil {
+		dConn.Close()
+		newChan.Reject(gossh.ConnectionFailed, err.Error())
+		return
+	}
+	logger.Infof("User %s start port forwarding to %s, user is %s", user.Name, *asset_ip, *system_user)
+	defer ch.Close()
+	go gossh.DiscardRequests(reqs)
+	go func() {
+		defer ch.Close()
+		defer dConn.Close()
+		io.Copy(ch, dConn)
+	}()
+	io.Copy(dConn, ch)
+	logger.Infof("User %s end port forwarding to %s, user is %s", user.Name, *asset_ip, *system_user)
 }

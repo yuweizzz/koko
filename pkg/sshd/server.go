@@ -2,9 +2,11 @@ package sshd
 
 import (
 	"net"
+	"strconv"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/pires/go-proxyproto"
+	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/config"
@@ -34,8 +36,31 @@ func StartServer() {
 		NextAuthMethodsHandler:     auth.MFAAuthMethods,
 		HostSigners:                []ssh.Signer{signer},
 		Handler:                    handler.SessionHandler,
+		// Default Enable LocalPortForwarding
+		LocalPortForwardingCallback: func(ctx ssh.Context, destinationHost string, destinationPort uint32) bool {
+			return true
+		},
 		SubsystemHandlers: map[string]ssh.SubsystemHandler{
 			"sftp": handler.SftpHandler,
+		},
+		// Handler direct-tcpip request
+		ChannelHandlers: map[string]ssh.ChannelHandler{
+			"session": ssh.DefaultSessionHandler,
+			"direct-tcpip": func(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewChannel, ctx ssh.Context) {
+				d := localForwardChannelData{}
+				if err := gossh.Unmarshal(newChan.ExtraData(), &d); err != nil {
+					newChan.Reject(gossh.ConnectionFailed, "error parsing forward data: "+err.Error())
+					return
+				}
+			
+				if srv.LocalPortForwardingCallback == nil || !srv.LocalPortForwardingCallback(ctx, d.DestAddr, d.DestPort) {
+					newChan.Reject(gossh.Prohibited, "port forwarding is disabled")
+					return
+				}
+			
+				dest := net.JoinHostPort(d.DestAddr, strconv.FormatInt(int64(d.DestPort), 10))
+				handler.DirectTCPIPChannelHandler(ctx, newChan, dest)
+			},
 		},
 	}
 	ln, err := net.Listen("tcp", addr)
@@ -52,4 +77,12 @@ func StopServer() {
 		logger.Errorf("SSH server close failed: %s", err.Error())
 	}
 	logger.Info("Close ssh server")
+}
+
+type localForwardChannelData struct {
+	DestAddr string
+	DestPort uint32
+
+	OriginAddr string
+	OriginPort uint32
 }
