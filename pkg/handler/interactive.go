@@ -69,7 +69,7 @@ func SessionHandler(sess ssh.Session) {
 			logger.Error(msg)
 			return
 		}
-		endSystemUser := selectSysUsers[0]
+		endSystemUser := matched[0]
 		endAsset := selectedAssets[0]
 		var info model.SystemUserAuthInfo
 		if endSystemUser.UsernameSameWithUser {
